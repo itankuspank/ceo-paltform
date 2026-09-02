@@ -170,7 +170,7 @@ export function generateWorld() {
       code: `PRJ-${String(idx + 1).padStart(3, "0")}`,
       nameAr: suffix === 1 && idx < PROJECT_TEMPLATES.length ? tmpl : `${tmpl} ${suffix}`,
       programCode: prg.code, pf: prg.pf, sector: SECTORS[R.int(0, SECTORS.length - 1)].code, goal: pf.goal,
-      managerName: R.pick(MANAGERS), phase: progress >= 95 ? "الإغلاق" : progress >= 25 ? "التنفيذ" : progress >= 10 ? "التخطيط" : "المفهوم",
+      managerName: R.pick(MANAGERS), phase: progress >= 95 ? "المنافع" : progress >= 85 ? "الإغلاق" : progress >= 45 ? "التنفيذ" : progress >= 30 ? "التخطيط" : "المفهوم",
       progress, status,
       scheduleStatus: (status === "on_track" ? "on_track" : R.next() < 0.6 ? status : "on_track") as Rag,
       financialStatus: (status === "off_track" && R.next() < 0.5 ? "off_track" : R.next() < 0.25 ? "at_risk" : "on_track") as Rag,
@@ -281,8 +281,15 @@ export function generateWorld() {
   const resources = Array.from({ length: 220 }, (_, i) => ({
     nameAr: `${FIRST[i % FIRST.length]} ${LAST[(i * 3) % LAST.length]}`, roleAr: ROLES_AR[i % ROLES_AR.length], departmentAr: DEPTS[i % DEPTS.length],
     capacityHours: 160, leaveHours: R.pick([0, 0, 8, 16, 24, 40]), trainingHours: R.pick([0, 0, 8, 16]), hourlyCost: R.int(150, 320),
-    assignments: Array.from({ length: R.int(1, 3) }, () => ({ projectCode: projects[R.int(0, 99)].code, hours: R.int(25, 90) })),
+    assignments: [] as { projectCode: string; hours: number }[],
   }));
+  // demand = 40–95% of net capacity, split across 1–3 Project Server assignments (avg utilisation ≈ 70%)
+  for (const r of resources) {
+    const net = r.capacityHours - r.leaveHours - r.trainingHours;
+    const total = Math.round(net * (0.4 + R.next() * 0.55));
+    const n = R.int(1, 3); let left = total;
+    r.assignments = Array.from({ length: n }, (_, i) => { const h = i === n - 1 ? left : Math.round(left / (n - i) * (0.6 + R.next() * 0.8)); left -= h; return { projectCode: projects[R.int(0, 99)].code, hours: Math.max(5, h) }; });
+  }
   // make exactly 14 over-allocated
   resources.slice(0, 14).forEach((r) => { r.assignments = [{ projectCode: projects[R.int(0, 99)].code, hours: 60 }, { projectCode: projects[R.int(0, 99)].code, hours: 45 }, { projectCode: projects[R.int(0, 99)].code, hours: 35 }]; r.leaveHours = 24; r.trainingHours = 16; });
 

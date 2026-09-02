@@ -7,6 +7,7 @@ import { OverviewRepository } from "../repositories/overview";
 import { StrategyRepository } from "../repositories/strategy";
 import { PortfolioRepository } from "../repositories/portfolio";
 import { GeoRepository } from "../repositories/geo";
+import { PerformanceRepository } from "../repositories/performance";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
@@ -14,6 +15,7 @@ const overviewRepo = new OverviewRepository(db);
 const strategyRepo = new StrategyRepository(db);
 const portfolioRepo = new PortfolioRepository(db);
 const geoRepo = new GeoRepository(db);
+const perfRepo = new PerformanceRepository(db);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
 publicRouter.get("/landing", async (_req, res, next) => {
@@ -121,5 +123,20 @@ apiRouter.post("/decisions/:id/decide", requirePermission("decisions:decide"), a
   } catch (e) { next(e); }
 });
 apiRouter.get("/risks", requirePermission("view:performance"), async (_req, res, next) => {
-  try { res.json(await db.select().from(s.risks).orderBy(desc(sql`${s.risks.probability} * ${s.risks.impact}`))); } catch (e) { next(e); }
+  try { res.json(await perfRepo.risks()); } catch (e) { next(e); }
+});
+apiRouter.get("/finance", requirePermission("view:performance"), async (_req, res, next) => {
+  try { res.json(await perfRepo.finance()); } catch (e) { next(e); }
+});
+apiRouter.get("/resources", requirePermission("view:performance"), async (_req, res, next) => {
+  try { res.json(await perfRepo.resources()); } catch (e) { next(e); }
+});
+apiRouter.get("/dependencies", requirePermission("view:performance"), async (_req, res, next) => {
+  try { res.json(await perfRepo.dependencies()); } catch (e) { next(e); }
+});
+apiRouter.get("/governance", requirePermission("view:governance"), async (_req, res, next) => {
+  try { res.json(await perfRepo.governance()); } catch (e) { next(e); }
+});
+apiRouter.get("/analytics", requirePermission("view:governance"), async (_req, res, next) => {
+  try { res.json(await perfRepo.analytics()); } catch (e) { next(e); }
 });

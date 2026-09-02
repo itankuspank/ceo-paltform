@@ -18,6 +18,9 @@ import ProgramsPage from "@/pages/Programs";
 import ProjectsRouter from "@/pages/Projects";
 import RegionsPage from "@/pages/Regions";
 import SectorsPage from "@/pages/Sectors";
+import { FinancePage, ResourcesPage } from "@/pages/FinanceResources";
+import { RisksPage, DependenciesPage, GovernancePage } from "@/pages/RisksGovernance";
+import AnalyticsPage from "@/pages/Analytics";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
@@ -34,6 +37,12 @@ const BUILT: Record<string, React.ComponentType> = {
   "/projects": ProjectsRouter,
   "/regions": RegionsPage,
   "/sectors": SectorsPage,
+  "/finance": FinancePage,
+  "/resources": ResourcesPage,
+  "/risks": RisksPage,
+  "/dependencies": DependenciesPage,
+  "/governance": GovernancePage,
+  "/analytics": AnalyticsPage,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {

@@ -28,14 +28,14 @@ export const NAV: NavGroup[] = [
     { path: "/sectors", labelAr: "قطاعات الوزارة", labelEn: "Sectors", icon: Building2 },
   ]},
   { labelAr: "الأداء", items: [
-    { path: "/finance", labelAr: "الأداء المالي", labelEn: "Financial Performance", icon: Wallet, sprint: 5 },
-    { path: "/resources", labelAr: "الموارد", labelEn: "Resources", icon: Users, sprint: 5 },
-    { path: "/risks", labelAr: "المخاطر والمشكلات", labelEn: "Risks & Issues", icon: AlertTriangle, sprint: 5 },
-    { path: "/dependencies", labelAr: "الاعتماديات", labelEn: "Dependencies", icon: Link2, sprint: 5 },
+    { path: "/finance", labelAr: "الأداء المالي", labelEn: "Financial Performance", icon: Wallet },
+    { path: "/resources", labelAr: "الموارد", labelEn: "Resources", icon: Users },
+    { path: "/risks", labelAr: "المخاطر والمشكلات", labelEn: "Risks & Issues", icon: AlertTriangle },
+    { path: "/dependencies", labelAr: "الاعتماديات", labelEn: "Dependencies", icon: Link2 },
   ]},
   { labelAr: "الحوكمة والتحليلات", items: [
-    { path: "/governance", labelAr: "الحوكمة والتصعيدات", labelEn: "Governance", icon: Scale, sprint: 5 },
-    { path: "/analytics", labelAr: "تحليل المحافظ والأولويات", labelEn: "Portfolio Analytics", icon: BarChart3, sprint: 5 },
+    { path: "/governance", labelAr: "الحوكمة والتصعيدات", labelEn: "Governance", icon: Scale },
+    { path: "/analytics", labelAr: "تحليل المحافظ والأولويات", labelEn: "Portfolio Analytics", icon: BarChart3 },
   ]},
   { labelAr: "تطوير وبناء القدرات", items: [
     { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap, sprint: 7 },
