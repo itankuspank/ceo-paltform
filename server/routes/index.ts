@@ -8,6 +8,7 @@ import { StrategyRepository } from "../repositories/strategy";
 import { PortfolioRepository } from "../repositories/portfolio";
 import { GeoRepository } from "../repositories/geo";
 import { PerformanceRepository } from "../repositories/performance";
+import { dataRouter, systemHandler } from "./data";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
@@ -16,6 +17,8 @@ const strategyRepo = new StrategyRepository(db);
 const portfolioRepo = new PortfolioRepository(db);
 const geoRepo = new GeoRepository(db);
 const perfRepo = new PerformanceRepository(db);
+apiRouter.use("/data", dataRouter);
+apiRouter.get("/system", requirePermission("view:system"), systemHandler);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
 publicRouter.get("/landing", async (_req, res, next) => {

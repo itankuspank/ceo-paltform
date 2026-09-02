@@ -41,9 +41,9 @@ export const NAV: NavGroup[] = [
     { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap, sprint: 7 },
   ]},
   { labelAr: "إدارة النظام", items: [
-    { path: "/data", labelAr: "إدارة البيانات", labelEn: "Data Administration", icon: Database, sprint: 6 },
-    { path: "/system", labelAr: "جودة البيانات والتكامل", labelEn: "Data Quality & Integration", icon: Activity, sprint: 6 },
-    { path: "/architecture", labelAr: "معمارية المنظومة", labelEn: "Solution Architecture", icon: Network, sprint: 6 },
+    { path: "/data", labelAr: "إدارة البيانات", labelEn: "Data Administration", icon: Database },
+    { path: "/system", labelAr: "جودة البيانات والتكامل", labelEn: "Data Quality & Integration", icon: Activity },
+    { path: "/architecture", labelAr: "معمارية المنظومة", labelEn: "Solution Architecture", icon: Network },
   ]},
 ];
 export const ALL_ITEMS = NAV.flatMap((g) => g.items);

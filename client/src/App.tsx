@@ -21,6 +21,8 @@ import SectorsPage from "@/pages/Sectors";
 import { FinancePage, ResourcesPage } from "@/pages/FinanceResources";
 import { RisksPage, DependenciesPage, GovernancePage } from "@/pages/RisksGovernance";
 import AnalyticsPage from "@/pages/Analytics";
+import DataAdminPage from "@/pages/DataAdmin";
+import { SystemPage, ArchitecturePage } from "@/pages/SystemArchitecture";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
@@ -43,6 +45,9 @@ const BUILT: Record<string, React.ComponentType> = {
   "/dependencies": DependenciesPage,
   "/governance": GovernancePage,
   "/analytics": AnalyticsPage,
+  "/data": DataAdminPage,
+  "/system": SystemPage,
+  "/architecture": ArchitecturePage,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {
