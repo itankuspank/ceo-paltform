@@ -16,6 +16,8 @@ import PmoPage from "@/pages/Pmo";
 import PortfoliosRouter from "@/pages/Portfolios";
 import ProgramsPage from "@/pages/Programs";
 import ProjectsRouter from "@/pages/Projects";
+import RegionsPage from "@/pages/Regions";
+import SectorsPage from "@/pages/Sectors";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
@@ -30,6 +32,8 @@ const BUILT: Record<string, React.ComponentType> = {
   "/portfolios": PortfoliosRouter,
   "/programs": ProgramsPage,
   "/projects": ProjectsRouter,
+  "/regions": RegionsPage,
+  "/sectors": SectorsPage,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {

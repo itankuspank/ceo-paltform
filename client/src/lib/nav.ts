@@ -24,8 +24,8 @@ export const NAV: NavGroup[] = [
     { path: "/projects", labelAr: "المبادرات والمشاريع", labelEn: "Initiatives & Projects", icon: ListChecks },
   ]},
   { labelAr: "التوزيع الجغرافي", items: [
-    { path: "/regions", labelAr: "مناطق المملكة", labelEn: "Regions", icon: Map, sprint: 4 },
-    { path: "/sectors", labelAr: "قطاعات الوزارة", labelEn: "Sectors", icon: Building2, sprint: 4 },
+    { path: "/regions", labelAr: "مناطق المملكة", labelEn: "Regions", icon: Map },
+    { path: "/sectors", labelAr: "قطاعات الوزارة", labelEn: "Sectors", icon: Building2 },
   ]},
   { labelAr: "الأداء", items: [
     { path: "/finance", labelAr: "الأداء المالي", labelEn: "Financial Performance", icon: Wallet, sprint: 5 },

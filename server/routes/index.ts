@@ -6,12 +6,14 @@ import { requirePermission } from "../auth";
 import { OverviewRepository } from "../repositories/overview";
 import { StrategyRepository } from "../repositories/strategy";
 import { PortfolioRepository } from "../repositories/portfolio";
+import { GeoRepository } from "../repositories/geo";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
 const overviewRepo = new OverviewRepository(db);
 const strategyRepo = new StrategyRepository(db);
 const portfolioRepo = new PortfolioRepository(db);
+const geoRepo = new GeoRepository(db);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
 publicRouter.get("/landing", async (_req, res, next) => {
@@ -93,11 +95,17 @@ apiRouter.get("/projects", requirePermission("view:portfolio"), async (_req, res
     res.json(rows);
   } catch (e) { next(e); }
 });
-apiRouter.get("/regions", requirePermission("view:geo"), async (_req, res, next) => {
-  try { res.json(await db.select().from(s.regions).orderBy(asc(s.regions.id))); } catch (e) { next(e); }
+apiRouter.get("/regions", requirePermission("view:geo"), async (req, res, next) => {
+  try { res.json(await geoRepo.regions(req.query.sector ? Number(req.query.sector) : undefined)); } catch (e) { next(e); }
 });
-apiRouter.get("/sectors", requirePermission("view:geo"), async (_req, res, next) => {
+apiRouter.get("/sectors", requirePermission("view:geo"), async (req, res, next) => {
+  try { res.json(await geoRepo.sectors(req.query.region ? Number(req.query.region) : undefined)); } catch (e) { next(e); }
+});
+apiRouter.get("/reference/sectors", requirePermission("view:geo"), async (_req, res, next) => {
   try { res.json(await db.select().from(s.sectors).orderBy(asc(s.sectors.id))); } catch (e) { next(e); }
+});
+apiRouter.get("/reference/regions", requirePermission("view:geo"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.regions).orderBy(asc(s.regions.id))); } catch (e) { next(e); }
 });
 apiRouter.get("/decisions", requirePermission("view:executive"), async (_req, res, next) => {
   try { res.json(await strategyRepo.decisions()); } catch (e) { next(e); }

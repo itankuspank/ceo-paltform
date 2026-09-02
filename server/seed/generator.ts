@@ -165,7 +165,7 @@ export function generateWorld() {
     const start = addDays(today, -R.int(200, 700));
     const end = addDays(start, R.int(300, 720));
     const impactTarget = R.round(4 + R.next() * 6, 1);
-    const ratio = status === "on_track" ? 0.85 + R.next() * 0.3 : status === "at_risk" ? 0.55 + R.next() * 0.3 : 0.3 + R.next() * 0.3;
+    const ratio = status === "on_track" ? 0.95 + R.next() * 0.2 : status === "at_risk" ? 0.7 + R.next() * 0.25 : 0.45 + R.next() * 0.3;   // averages ≈ 81%, consistent with the 82% headline
     return {
       code: `PRJ-${String(idx + 1).padStart(3, "0")}`,
       nameAr: suffix === 1 && idx < PROJECT_TEMPLATES.length ? tmpl : `${tmpl} ${suffix}`,
