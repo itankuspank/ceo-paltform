@@ -1,0 +1,73 @@
+import express, { type Router } from "express";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { db } from "../db";
+import * as s from "../../shared/schema";
+import { requirePermission } from "../auth";
+import { OverviewRepository } from "../repositories/overview";
+
+export const apiRouter: Router = express.Router();
+export const publicRouter: Router = express.Router();
+const overviewRepo = new OverviewRepository(db);
+
+// Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
+publicRouter.get("/landing", async (_req, res, next) => {
+  try { res.json(await overviewRepo.landingSummary()); } catch (e) { next(e); }
+});
+
+// ---------------------------------------------------------------- executive
+apiRouter.get("/overview", requirePermission("view:executive"), async (_req, res, next) => {
+  try { res.json(await overviewRepo.executiveOverview()); } catch (e) { next(e); }
+});
+
+// ---------------------------------------------------------------- reference lists (used across screens)
+apiRouter.get("/goals", requirePermission("view:strategy"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.goals).orderBy(asc(s.goals.sortOrder))); } catch (e) { next(e); }
+});
+apiRouter.get("/kpis", requirePermission("view:strategy"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.kpis).orderBy(asc(s.kpis.code))); } catch (e) { next(e); }
+});
+apiRouter.get("/portfolios", requirePermission("view:portfolio"), async (_req, res, next) => {
+  try {
+    const rows = await db.select({
+      id: s.portfolios.id, code: s.portfolios.code, nameAr: s.portfolios.nameAr, nameEn: s.portfolios.nameEn, managerName: s.portfolios.managerName, status: s.portfolios.status,
+      value: sql<number>`coalesce(sum(${s.financials.budget}), 0)`, projectCount: sql<number>`count(distinct ${s.projects.id})`,
+      programCount: sql<number>`count(distinct ${s.projects.programId})`,
+      achievedImpact: sql<number>`coalesce(avg(${s.projects.impactAchieved} / nullif(${s.projects.impactTarget}, 0)) * 100, 0)`,
+      onTrack: sql<number>`count(*) filter (where ${s.projects.status} = 'on_track')`,
+      atRisk: sql<number>`count(*) filter (where ${s.projects.status} = 'at_risk')`,
+      offTrack: sql<number>`count(*) filter (where ${s.projects.status} = 'off_track')`,
+    }).from(s.portfolios).leftJoin(s.projects, eq(s.projects.portfolioId, s.portfolios.id)).leftJoin(s.financials, eq(s.financials.projectId, s.projects.id))
+      .groupBy(s.portfolios.id).orderBy(asc(s.portfolios.code));
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+apiRouter.get("/programs", requirePermission("view:portfolio"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.programs).orderBy(asc(s.programs.code))); } catch (e) { next(e); }
+});
+apiRouter.get("/projects", requirePermission("view:portfolio"), async (_req, res, next) => {
+  try {
+    const rows = await db.select({
+      id: s.projects.id, code: s.projects.code, nameAr: s.projects.nameAr, programId: s.projects.programId, portfolioId: s.projects.portfolioId, sectorId: s.projects.sectorId,
+      goalId: s.projects.goalId, managerName: s.projects.managerName, phase: s.projects.phase, progress: s.projects.progress, scheduleStatus: s.projects.scheduleStatus,
+      financialStatus: s.projects.financialStatus, status: s.projects.status, impactTarget: s.projects.impactTarget, impactAchieved: s.projects.impactAchieved,
+      priorityScore: s.projects.priorityScore, startDate: s.projects.startDate, endDate: s.projects.endDate,
+      budget: s.financials.budget, committed: s.financials.committed, actual: s.financials.actual, eac: s.financials.eac,
+      programName: s.programs.nameAr, portfolioName: s.portfolios.nameAr, sectorCode: s.sectors.code, sectorName: s.sectors.nameAr,
+    }).from(s.projects).innerJoin(s.programs, eq(s.programs.id, s.projects.programId)).innerJoin(s.portfolios, eq(s.portfolios.id, s.projects.portfolioId))
+      .innerJoin(s.sectors, eq(s.sectors.id, s.projects.sectorId)).leftJoin(s.financials, eq(s.financials.projectId, s.projects.id))
+      .where(eq(s.projects.isArchived, false)).orderBy(asc(s.projects.code));
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+apiRouter.get("/regions", requirePermission("view:geo"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.regions).orderBy(asc(s.regions.id))); } catch (e) { next(e); }
+});
+apiRouter.get("/sectors", requirePermission("view:geo"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.sectors).orderBy(asc(s.sectors.id))); } catch (e) { next(e); }
+});
+apiRouter.get("/decisions", requirePermission("view:executive"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.decisions).orderBy(asc(s.decisions.code))); } catch (e) { next(e); }
+});
+apiRouter.get("/risks", requirePermission("view:performance"), async (_req, res, next) => {
+  try { res.json(await db.select().from(s.risks).orderBy(desc(sql`${s.risks.probability} * ${s.risks.impact}`))); } catch (e) { next(e); }
+});

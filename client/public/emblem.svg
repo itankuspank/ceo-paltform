@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Placeholder emblem — replace with the official MOI emblem (keep this file name) -->
+  <circle cx="32" cy="32" r="30" fill="#C9A227"/>
+  <circle cx="32" cy="32" r="24" fill="#0E3F36"/>
+  <path d="M20 40 L32 20 L44 40 Z" fill="#C9A227"/>
+  <path d="M26 40 L32 30 L38 40 Z" fill="#0E3F36"/>
+  <rect x="18" y="42" width="28" height="3" rx="1.5" fill="#C9A227"/>
+</svg>

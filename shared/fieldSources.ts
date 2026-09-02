@@ -1,0 +1,40 @@
+/**
+ * Field ownership — which system owns each field (FR-D-06).
+ * Editing a field owned by another system requires the data:override permission.
+ */
+export type FieldSource = "project_server" | "odoo" | "manual" | "computed";
+
+export const SOURCE_LABELS: Record<FieldSource, string> = {
+  project_server: "Microsoft Project Server",
+  odoo: "Odoo ERP",
+  manual: "إدخال يدوي",
+  computed: "محتسب آلياً",
+};
+
+export const FIELD_SOURCES: Record<string, Record<string, FieldSource>> = {
+  projects: {
+    nameAr: "project_server", managerName: "project_server", phase: "project_server",
+    progress: "project_server", startDate: "project_server", endDate: "project_server",
+    scheduleStatus: "computed", financialStatus: "computed", status: "computed",
+    impactTarget: "manual", impactAchieved: "computed", priorityScore: "computed",
+    sectorId: "manual", goalId: "manual", programId: "project_server",
+  },
+  financials: { budget: "odoo", committed: "odoo", actual: "odoo", eac: "computed" },
+  resources: { capacityHours: "odoo", leaveHours: "odoo", trainingHours: "odoo", hourlyCost: "odoo" },
+  resourceAssignments: { hours: "project_server" },
+  kpis: { baseline: "manual", target: "manual", current: "computed", status: "computed" },
+  goals: { targetImpact: "manual", achievedImpact: "computed", investment: "computed" },
+  portfolios: { managerName: "manual", status: "computed" },
+  programs: { managerName: "project_server", status: "computed" },
+  risks: { probability: "project_server", impact: "project_server", response: "manual", status: "manual" },
+  decisions: { titleAr: "manual", amount: "manual", status: "manual" },
+};
+
+/** Fields that require an approval workflow before publishing (FR-D-05). */
+export const SENSITIVE_FIELDS: Record<string, string[]> = {
+  goals: ["targetImpact"],
+  kpis: ["baseline", "target"],
+  projects: ["impactTarget", "goalId"],
+  financials: ["budget"],
+  decisions: ["status"],
+};
