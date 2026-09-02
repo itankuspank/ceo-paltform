@@ -41,4 +41,4 @@ shared/    schema.ts (Drizzle + types) · rbac.ts · fieldSources.ts · format.t
 server/    index.ts · auth.ts · db.ts · vite.ts · routes/ · repositories/ · seed/
 client/    src/components (ui.tsx, AppShell.tsx) · src/pages · src/lib (api, auth, nav)
 ```
-Replace `client/public/emblem.svg` with the official emblem (keep the file name).
+Official MOI emblem and PWA icons live in `client/public/` (`emblem.png`, `favicon.png`, `icons/`). Font: Sakkal Majalla (device-resolved, optional TTFs in `client/public/fonts/`) with bundled IBM Plex Sans Arabic fallback.

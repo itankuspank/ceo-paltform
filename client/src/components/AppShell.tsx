@@ -16,7 +16,7 @@ function Sidebar() {
   return (
     <aside className="w-[250px] shrink-0 bg-brand text-white flex flex-col h-screen sticky top-0">
       <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
-        <img src="/emblem.svg" alt="" className="h-10 w-10" />
+        <span className="inline-flex items-center justify-center rounded-full bg-white p-0.5 shadow-sm shrink-0"><img src="/emblem.png" alt="شعار وزارة الداخلية" className="h-10 w-10 rounded-full" /></span>
         <div>
           <div className="text-[14px] font-bold leading-tight">وزارة الداخلية</div>
           <div className="text-[10.5px] text-white/60 leading-tight mt-0.5">{OWNER_AR}</div>

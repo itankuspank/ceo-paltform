@@ -31,7 +31,7 @@ export default function LoginPage() {
     <div className="min-h-screen grid grid-cols-[1.1fr_1fr]">
       <div className="bg-brand text-white flex flex-col justify-between p-10">
         <div className="flex items-center gap-3">
-          <img src="/emblem.svg" alt="" className="h-12 w-12" />
+          <span className="inline-flex items-center justify-center rounded-full bg-white p-0.5 shadow-sm shrink-0"><img src="/emblem.png" alt="شعار وزارة الداخلية" className="h-12 w-12 rounded-full" /></span>
           <div>
             <div className="text-[15px] font-bold">وزارة الداخلية</div>
             <div className="text-[11px] text-white/60">{OWNER_AR}</div>

@@ -1,0 +1,17 @@
+{
+  "name": "منصة متابعة الأعمال والمهام للرئيس التنفيذي",
+  "short_name": "منصة الرئيس التنفيذي",
+  "description": "برنامج تطوير وزارة الداخلية — منصة تنفيذية لمتابعة الأعمال والمهام والأثر الاستراتيجي",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F0",
+  "theme_color": "#0E3F36",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

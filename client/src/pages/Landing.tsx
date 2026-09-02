@@ -28,7 +28,7 @@ export default function LandingPage() {
         <div className="max-w-[1400px] mx-auto px-8 pt-5 pb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/emblem.svg" alt="" className="h-11 w-11" />
+              <span className="inline-flex items-center justify-center rounded-full bg-white p-0.5 shadow-sm shrink-0"><img src="/emblem.png" alt="شعار وزارة الداخلية" className="h-11 w-11 rounded-full" /></span>
               <div>
                 <div className="text-[14px] font-bold leading-tight">وزارة الداخلية — {OWNER_AR}</div>
                 <div className="text-[10.5px] text-white/60">Ministry of Interior — MOI Development Program</div>

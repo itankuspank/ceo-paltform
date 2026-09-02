@@ -33,7 +33,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"IBM Plex Sans Arabic"', '"Sakkal Majalla"', "Tahoma", "Arial", "sans-serif"],
+        sans: ['"Sakkal Majalla"', '"IBM Plex Sans Arabic"', "Tahoma", "Arial", "sans-serif"],
       },
       boxShadow: {
         card: "0 1px 2px rgba(20, 40, 30, 0.04), 0 1px 6px rgba(20, 40, 30, 0.05)",
