@@ -5,6 +5,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db";
 import * as s from "../../shared/schema";
+import { skillReadiness } from "../../shared/schema";
 
 export class OverviewRepository {
   constructor(private db: Db) {}
@@ -81,7 +82,12 @@ export class OverviewRepository {
     const kpisAtRisk = await this.db.select({ id: s.kpis.id, code: s.kpis.code, nameAr: s.kpis.nameAr, status: s.kpis.status, current: s.kpis.current, target: s.kpis.target, unit: s.kpis.unit })
       .from(s.kpis).where(sql`${s.kpis.status} in ('at_risk','off_track')`).orderBy(sql`case ${s.kpis.status} when 'off_track' then 0 else 1 end`, asc(s.kpis.code)).limit(6);
 
+    const sk = await this.db.select().from(s.skills);
+    const readinessIndex = sk.length ? Math.round((sk.reduce((a, x) => a + skillReadiness(x), 0) / sk.length) * 10) / 10 : 0;
+    const capability = { index: readinessIndex, status: readinessIndex >= 85 ? "on_track" : readinessIndex >= 70 ? "at_risk" : "off_track", criticalGaps: sk.filter((x) => x.importance === "حرجة" && skillReadiness(x) < 80).length };
+
     return {
+      capability,
       kpis: {
         investment: t.investment, impact: t.impact, portfolios: Number(t.portfolios), projects: Number(t.projects), kpiCount: Number(t.kpis),
         kpisAtRisk: Number(t.kpisOffTrack), pendingDecisions: Number(t.pendingDecisions), forecastImpact: t.forecastImpact, targetImpact: 90,

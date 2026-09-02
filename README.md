@@ -2,9 +2,10 @@
 
 **برنامج تطوير وزارة الداخلية** · Air-gapped / on-premises ready · Pilot with synthetic data
 
-> Sprint 1 — foundation: data model (14 entities), deterministic synthetic world, session auth + server-side RBAC,
-> API with repository layer, app shell, landing page, CEO Executive Overview. Every other screen is a navigable placeholder
-> until its sprint lands.
+> Sprints 1–7 complete: all 36 screens — executive layer, strategy & KPIs, portfolio layer with Gantt, regions map (MapLibre,
+> bundled GeoJSON), sectors, finance, resources, risks, dependencies, governance, prioritisation analytics, the data
+> administration console (ownership · approvals · audit · revert · relations · archive · CSV · users), data quality & integration,
+> architecture, and the capability-development module (11 screens incl. the English CEFR dashboard and the readiness index).
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.
@@ -14,7 +15,7 @@ Single process, single port (5000). **No external calls anywhere** — fonts, ch
 1. Push this folder to a **private** GitHub repo → Replit → *Create Repl → Import from GitHub*.
 2. In Replit: **Tools → Database → PostgreSQL** (sets `DATABASE_URL` automatically).
 3. **Tools → Secrets**: add `SESSION_SECRET` (any long random string).
-4. Shell: `npm install && npm run db:push && npm run db:seed`
+4. Shell: `npm install && npm run db:push && npm run db:seed`  (re-run `db:push` + `db:seed` after any update that changes the schema or the seed)
 5. Press **Run** (`npm run dev`). Open the webview → `/` is the entry screen, `/login` to sign in.
 
 Demo accounts (password `Demo@2026`): `ceo` · `epmo` · `portfolio` · `project` · `data` · `admin`.

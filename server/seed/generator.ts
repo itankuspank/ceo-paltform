@@ -278,7 +278,7 @@ export function generateWorld() {
   const LAST = ["العتيبي", "الشمري", "المطيري", "الزهراني", "القحطاني", "الحربي", "الدوسري", "العمري", "الغامدي", "السبيعي", "الرشيد", "العنزي", "الشهري", "الأحمدي", "البقمي"];
   const ROLES_AR = ["مهندس نظم", "محلل أعمال", "مهندس تكامل", "مدير مشروع", "مطور", "محلل بيانات", "مهندس شبكات", "أخصائي أمن سيبراني", "مشرف تنفيذ", "مهندس اختبار"];
   const DEPTS = ["الإدارة العامة لتقنية المعلومات", "الأمن السيبراني", "المشتريات", "المالية", "الموارد البشرية", "برنامج تطوير وزارة الداخلية", "العمليات"];
-  const resources = Array.from({ length: 220 }, (_, i) => ({
+  const resources = Array.from({ length: 260 }, (_, i) => ({
     nameAr: `${FIRST[i % FIRST.length]} ${LAST[Math.floor(i / FIRST.length) % LAST.length]}`, roleAr: ROLES_AR[i % ROLES_AR.length], departmentAr: DEPTS[i % DEPTS.length],
     capacityHours: 160, leaveHours: R.pick([0, 0, 8, 16, 24, 40]), trainingHours: R.pick([0, 0, 8, 16]), hourlyCost: R.int(150, 320),
     assignments: [] as { projectCode: string; hours: number }[],

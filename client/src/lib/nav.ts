@@ -38,7 +38,7 @@ export const NAV: NavGroup[] = [
     { path: "/analytics", labelAr: "تحليل المحافظ والأولويات", labelEn: "Portfolio Analytics", icon: BarChart3 },
   ]},
   { labelAr: "تطوير وبناء القدرات", items: [
-    { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap, sprint: 7 },
+    { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap },
   ]},
   { labelAr: "إدارة النظام", items: [
     { path: "/data", labelAr: "إدارة البيانات", labelEn: "Data Administration", icon: Database },

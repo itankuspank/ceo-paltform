@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import { db, pool } from "../db";
 import * as s from "../../shared/schema";
 import { generateWorld, GOALS, SECTORS, REGIONS, PORTFOLIOS, KPIS } from "./generator";
+import { generateLearning, PROVIDERS } from "./learning";
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@2026";
 
@@ -24,6 +25,7 @@ async function main() {
   const w = generateWorld();
 
   await db.execute(sql`TRUNCATE TABLE
+    succession_plans, skills, learning_enrollments, learning_programs, learning_providers,
     change_requests, change_log, resource_assignments, resources, change_requests_gov, escalations, decisions,
     dependencies, issues, risks, deliverables, milestones, financials, portfolio_goals, project_kpis, project_regions,
     projects, programs, portfolios, kpi_readings, kpis, objectives, goals, sectors, regions, sync_jobs, data_sources, users
@@ -84,6 +86,15 @@ async function main() {
 
   const resRows = await db.insert(s.resources).values(w.resources.map(({ assignments: _a, ...r }) => r)).returning();
   await db.insert(s.resourceAssignments).values(w.resources.flatMap((r, i) => r.assignments.map((a) => ({ resourceId: resRows[i].id, projectId: prjId[a.projectCode], hours: a.hours }))));
+
+  // capability development module
+  const L = generateLearning(resRows.length, sectorRows.length);
+  await db.insert(s.learningProviders).values(PROVIDERS);
+  const lpRows = await db.insert(s.learningPrograms).values(L.programs.map((p: any) => ({ ...p, providerId: p.providerId ?? null, sectorId: p.sectorId ?? null }))).returning();
+  await db.insert(s.learningEnrollments).values(L.enrollments.map((e: any) => ({ ...e, programId: lpRows[e.programId - 1].id })));
+  await db.insert(s.skills).values(L.skills);
+  await db.insert(s.successionPlans).values(L.succession);
+  console.log(`✓ وحدة التطوير: ${L.programs.length} برنامجاً · ${L.enrollments.length} تسجيلاً · ${L.skills.length} مهارة · ${L.succession.length} خطة إحلال`);
 
   await db.insert(s.dataSources).values(w.dataSources);
   await db.insert(s.syncJobs).values(w.syncJobs);

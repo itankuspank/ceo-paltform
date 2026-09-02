@@ -7,7 +7,7 @@
  * Field ownership (Project Server / Odoo / manual / computed) lives in shared/fieldSources.ts.
  */
 import {
-  pgTable, serial, text, integer, real, boolean, timestamp, date, primaryKey, index,
+  pgTable, serial, text, integer, real, boolean, timestamp, date, primaryKey, index, varchar, json,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -18,6 +18,13 @@ export const RAG = ["on_track", "at_risk", "off_track"] as const;
 export type Rag = (typeof RAG)[number];
 
 // ---------------------------------------------------------------- auth
+/** Session store table used by connect-pg-simple — declared so drizzle-kit never mistakes new tables for a rename of it. */
+export const session = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+}, (t) => [index("IDX_session_expire").on(t.expire)]);
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -369,3 +376,72 @@ export type Risk = typeof risks.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Resource = typeof resources.$inferSelect;
 export type Dependency = typeof dependencies.$inferSelect;
+
+// ================================================================ capability development module (FR-L-01 … FR-L-14)
+export const LEARNING_TRACKS = ["english", "postgraduate", "leadership", "short"] as const;
+export type LearningTrack = (typeof LEARNING_TRACKS)[number];
+export const CEFR = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"] as const;
+
+export const learningProviders = pgTable("learning_providers", {
+  id: serial("id").primaryKey(),
+  nameAr: text("name_ar").notNull(),
+  type: text("type").notNull(),                   // جامعة | مركز تدريب | منصة إلكترونية
+  countryAr: text("country_ar").notNull(),
+  accredited: boolean("accredited").notNull().default(true),
+  costIndex: integer("cost_index").notNull().default(3), // 1-5
+  qualityScore: real("quality_score").notNull(),  // 0-100
+});
+
+export const learningPrograms = pgTable("learning_programs", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  nameAr: text("name_ar").notNull(),
+  track: text("track").$type<LearningTrack>().notNull(),
+  providerId: integer("provider_id").references(() => learningProviders.id),
+  kind: text("kind").notNull(),                   // دورة | ورشة | شهادة احترافية | ماجستير | دكتوراه | برنامج قيادي | مسار لغوي
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  cost: real("cost").notNull(),                   // SAR thousands per participant
+  capacity: integer("capacity").notNull(),
+  status: text("status").notNull(),               // مخطط | جارٍ | مكتمل
+  sectorId: integer("sector_id").references(() => sectors.id),
+});
+
+export const learningEnrollments = pgTable("learning_enrollments", {
+  id: serial("id").primaryKey(),
+  programId: integer("program_id").notNull().references(() => learningPrograms.id),
+  resourceId: integer("resource_id").notNull().references(() => resources.id), // beneficiary = HR record (FR-L-07)
+  status: text("status").notNull(),               // مسجل | جارٍ | مكتمل | منسحب
+  completion: real("completion").notNull().default(0),
+  placementLevel: text("placement_level"),        // english: CEFR at placement test
+  currentLevel: text("current_level"),            // english: current CEFR
+  platform: text("platform"),                     // english: learning platform
+  specializationAr: text("specialization_ar"),    // postgraduate
+  reaction: real("reaction"), learning: real("learning"), behavior: real("behavior"), results: real("results"), // 4-level impact 0-100
+}, (t) => [index("le_program_idx").on(t.programId), index("le_resource_idx").on(t.resourceId)]);
+
+export const skills = pgTable("skills", {
+  id: serial("id").primaryKey(),
+  nameAr: text("name_ar").notNull(),
+  sectorId: integer("sector_id").notNull().references(() => sectors.id),
+  importance: text("importance").notNull(),       // حرجة | عالية | متوسطة
+  required: integer("required").notNull(),
+  covered: integer("covered").notNull(),
+  gapClosure: real("gap_closure").notNull(),      // % of the gap-closure plan achieved
+});
+
+export const successionPlans = pgTable("succession_plans", {
+  id: serial("id").primaryKey(),
+  positionAr: text("position_ar").notNull(),
+  sectorId: integer("sector_id").notNull().references(() => sectors.id),
+  incumbentAr: text("incumbent_ar").notNull(),
+  successorResourceId: integer("successor_resource_id").references(() => resources.id),
+  readiness: text("readiness").notNull(),         // جاهز الآن | خلال سنة | خلال سنتين
+  readinessPct: real("readiness_pct").notNull(),
+});
+
+/** مؤشر جاهزية القدرات — FR-L-12: readiness = coverage × 60% + gap-closure × 40% */
+export function skillReadiness(s: { required: number; covered: number; gapClosure: number }): number {
+  const coverage = s.required ? Math.min(100, (s.covered / s.required) * 100) : 100;
+  return Math.round((coverage * 0.6 + s.gapClosure * 0.4) * 10) / 10;
+}

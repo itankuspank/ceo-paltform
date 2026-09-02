@@ -9,6 +9,7 @@ import { PortfolioRepository } from "../repositories/portfolio";
 import { GeoRepository } from "../repositories/geo";
 import { PerformanceRepository } from "../repositories/performance";
 import { dataRouter, systemHandler } from "./data";
+import { LearningRepository } from "../repositories/learning";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
@@ -18,6 +19,19 @@ const portfolioRepo = new PortfolioRepository(db);
 const geoRepo = new GeoRepository(db);
 const perfRepo = new PerformanceRepository(db);
 apiRouter.use("/data", dataRouter);
+const learningRepo = new LearningRepository(db);
+const L = (fn: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response, next: express.NextFunction) => { try { res.json(await fn(req)); } catch (e) { next(e); } };
+apiRouter.get("/learning/dashboard", requirePermission("view:learning"), L(() => learningRepo.dashboard()));
+apiRouter.get("/learning/english", requirePermission("view:learning"), L(() => learningRepo.english()));
+apiRouter.get("/learning/track/:track", requirePermission("view:learning"), L((req) => { const t = req.params.track as string; if (!s.LEARNING_TRACKS.includes(t as any)) throw Object.assign(new Error("مسار غير معروف"), { status: 404 }); return learningRepo.track(t as s.LearningTrack); }));
+apiRouter.get("/learning/employees", requirePermission("view:learning"), L(() => learningRepo.employees()));
+apiRouter.get("/learning/employees/:id", requirePermission("view:learning"), L(async (req) => { const d = await learningRepo.employee(Number(req.params.id)); if (!d) throw Object.assign(new Error("المستفيد غير موجود"), { status: 404 }); return d; }));
+apiRouter.get("/learning/providers", requirePermission("view:learning"), L(() => learningRepo.providers()));
+apiRouter.get("/learning/calendar", requirePermission("view:learning"), L(() => learningRepo.calendar()));
+apiRouter.get("/learning/analysis", requirePermission("view:learning"), L(() => learningRepo.analysis()));
+apiRouter.get("/learning/reports/:key.csv", requirePermission("view:learning"), async (req, res, next) => {
+  try { const r = await learningRepo.reportCsv(req.params.key as string); if (!r) return res.status(404).json({ error: "التقرير غير موجود" }); res.setHeader("Content-Type", "text/csv; charset=utf-8"); res.setHeader("Content-Disposition", `attachment; filename="${r.name}.csv"`); res.send(r.csv); } catch (e) { next(e); }
+});
 apiRouter.get("/system", requirePermission("view:system"), systemHandler);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
