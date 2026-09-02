@@ -5,11 +5,13 @@ import * as s from "../../shared/schema";
 import { requirePermission } from "../auth";
 import { OverviewRepository } from "../repositories/overview";
 import { StrategyRepository } from "../repositories/strategy";
+import { PortfolioRepository } from "../repositories/portfolio";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
 const overviewRepo = new OverviewRepository(db);
 const strategyRepo = new StrategyRepository(db);
+const portfolioRepo = new PortfolioRepository(db);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
 publicRouter.get("/landing", async (_req, res, next) => {
@@ -57,7 +59,24 @@ apiRouter.get("/portfolios", requirePermission("view:portfolio"), async (_req, r
   } catch (e) { next(e); }
 });
 apiRouter.get("/programs", requirePermission("view:portfolio"), async (_req, res, next) => {
-  try { res.json(await db.select().from(s.programs).orderBy(asc(s.programs.code))); } catch (e) { next(e); }
+  try { res.json(await portfolioRepo.programs()); } catch (e) { next(e); }
+});
+apiRouter.get("/pmo", requirePermission("view:portfolio"), async (_req, res, next) => {
+  try { res.json(await portfolioRepo.pmoCenter()); } catch (e) { next(e); }
+});
+apiRouter.get("/portfolios/:id", requirePermission("view:portfolio"), async (req, res, next) => {
+  try {
+    const d = await portfolioRepo.portfolioDetail(Number(req.params.id));
+    if (!d) return res.status(404).json({ error: "المحفظة غير موجودة" });
+    res.json(d);
+  } catch (e) { next(e); }
+});
+apiRouter.get("/projects/:id", requirePermission("view:portfolio"), async (req, res, next) => {
+  try {
+    const d = await portfolioRepo.projectDetail(Number(req.params.id));
+    if (!d) return res.status(404).json({ error: "المبادرة غير موجودة" });
+    res.json(d);
+  } catch (e) { next(e); }
 });
 apiRouter.get("/projects", requirePermission("view:portfolio"), async (_req, res, next) => {
   try {

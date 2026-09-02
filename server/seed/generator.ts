@@ -212,8 +212,8 @@ export function generateWorld() {
       const len = Math.round(total * [0.15, 0.2, 0.35, 0.2, 0.1][i]);
       const ps = addDays(start, cursor); const pe = addDays(ps, len); cursor += len;
       const done = p.progress >= [15, 35, 70, 90, 100][i];
-      const delay = done ? 0 : p.status === "off_track" ? R.int(10, 45) : p.status === "at_risk" ? R.int(0, 12) : 0;
       const active = !done && p.progress >= [0, 15, 35, 70, 90][i];
+      const delay = !active ? 0 : p.status === "off_track" ? R.int(10, 45) : p.status === "at_risk" ? R.int(0, 12) : 0;
       return { projectCode: p.code, nameAr: ph, plannedStart: iso(ps), plannedEnd: iso(pe), actualStart: done || active ? iso(ps) : null, actualEnd: done ? iso(addDays(pe, delay)) : null, delayDays: delay, status: done ? "مكتمل" : active ? (delay > 0 ? "متأخر" : "قيد التنفيذ") : "لم يبدأ", isCritical: i === 2 };
     });
   });

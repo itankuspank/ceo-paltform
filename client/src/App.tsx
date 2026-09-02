@@ -12,6 +12,10 @@ import ImpactPage from "@/pages/Impact";
 import DecisionsPage from "@/pages/Decisions";
 import StrategyPage from "@/pages/Strategy";
 import KpisRouter from "@/pages/Kpis";
+import PmoPage from "@/pages/Pmo";
+import PortfoliosRouter from "@/pages/Portfolios";
+import ProgramsPage from "@/pages/Programs";
+import ProjectsRouter from "@/pages/Projects";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
@@ -22,6 +26,10 @@ const BUILT: Record<string, React.ComponentType> = {
   "/decisions": DecisionsPage,
   "/strategy": StrategyPage,
   "/kpis": KpisRouter,
+  "/pmo": PmoPage,
+  "/portfolios": PortfoliosRouter,
+  "/programs": ProgramsPage,
+  "/projects": ProjectsRouter,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {

@@ -18,10 +18,10 @@ export const NAV: NavGroup[] = [
     { path: "/kpis", labelAr: "مؤشرات الأداء", labelEn: "KPI Library", icon: LineChart },
   ]},
   { labelAr: "المحافظ والمبادرات", items: [
-    { path: "/pmo", labelAr: "مركز التحكم بالمحافظ", labelEn: "PMO Control Center", icon: LayoutGrid, sprint: 3 },
-    { path: "/portfolios", labelAr: "المحافظ", labelEn: "Portfolios", icon: Briefcase, sprint: 3 },
-    { path: "/programs", labelAr: "البرامج", labelEn: "Programs", icon: Layers, sprint: 3 },
-    { path: "/projects", labelAr: "المبادرات والمشاريع", labelEn: "Initiatives & Projects", icon: ListChecks, sprint: 3 },
+    { path: "/pmo", labelAr: "مركز التحكم بالمحافظ", labelEn: "PMO Control Center", icon: LayoutGrid },
+    { path: "/portfolios", labelAr: "المحافظ", labelEn: "Portfolios", icon: Briefcase },
+    { path: "/programs", labelAr: "البرامج", labelEn: "Programs", icon: Layers },
+    { path: "/projects", labelAr: "المبادرات والمشاريع", labelEn: "Initiatives & Projects", icon: ListChecks },
   ]},
   { labelAr: "التوزيع الجغرافي", items: [
     { path: "/regions", labelAr: "مناطق المملكة", labelEn: "Regions", icon: Map, sprint: 4 },
