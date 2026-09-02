@@ -8,12 +8,20 @@ import LandingPage from "@/pages/Landing";
 import LoginPage from "@/pages/Login";
 import OverviewPage from "@/pages/Overview";
 import PlaceholderPage from "@/pages/Placeholder";
+import ImpactPage from "@/pages/Impact";
+import DecisionsPage from "@/pages/Decisions";
+import StrategyPage from "@/pages/Strategy";
+import KpisRouter from "@/pages/Kpis";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
 /** Screens already built — everything else falls back to the placeholder until its sprint lands. */
 const BUILT: Record<string, React.ComponentType> = {
   "/overview": OverviewPage,
+  "/impact": ImpactPage,
+  "/decisions": DecisionsPage,
+  "/strategy": StrategyPage,
+  "/kpis": KpisRouter,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {

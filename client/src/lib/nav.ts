@@ -10,12 +10,12 @@ export type NavGroup = { labelAr: string; items: NavItem[] };
 export const NAV: NavGroup[] = [
   { labelAr: "القيادة التنفيذية", items: [
     { path: "/overview", labelAr: "النظرة التنفيذية", labelEn: "Executive Overview", icon: Gauge },
-    { path: "/impact", labelAr: "الأثر الاستراتيجي", labelEn: "Strategic Impact", icon: Target, sprint: 2 },
-    { path: "/decisions", labelAr: "القرارات التنفيذية", labelEn: "Executive Decisions", icon: Gavel, sprint: 2 },
+    { path: "/impact", labelAr: "الأثر الاستراتيجي", labelEn: "Strategic Impact", icon: Target },
+    { path: "/decisions", labelAr: "القرارات التنفيذية", labelEn: "Executive Decisions", icon: Gavel },
   ]},
   { labelAr: "الاستراتيجية", items: [
-    { path: "/strategy", labelAr: "الغايات والأهداف", labelEn: "Goals & Objectives", icon: GitBranch, sprint: 2 },
-    { path: "/kpis", labelAr: "مؤشرات الأداء", labelEn: "KPI Library", icon: LineChart, sprint: 2 },
+    { path: "/strategy", labelAr: "الغايات والأهداف", labelEn: "Goals & Objectives", icon: GitBranch },
+    { path: "/kpis", labelAr: "مؤشرات الأداء", labelEn: "KPI Library", icon: LineChart },
   ]},
   { labelAr: "المحافظ والمبادرات", items: [
     { path: "/pmo", labelAr: "مركز التحكم بالمحافظ", labelEn: "PMO Control Center", icon: LayoutGrid, sprint: 3 },

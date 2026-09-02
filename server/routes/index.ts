@@ -4,10 +4,12 @@ import { db } from "../db";
 import * as s from "../../shared/schema";
 import { requirePermission } from "../auth";
 import { OverviewRepository } from "../repositories/overview";
+import { StrategyRepository } from "../repositories/strategy";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
 const overviewRepo = new OverviewRepository(db);
+const strategyRepo = new StrategyRepository(db);
 
 // Entry screen figures (aggregates only). In production the whole platform sits behind AD/SSO.
 publicRouter.get("/landing", async (_req, res, next) => {
@@ -24,7 +26,20 @@ apiRouter.get("/goals", requirePermission("view:strategy"), async (_req, res, ne
   try { res.json(await db.select().from(s.goals).orderBy(asc(s.goals.sortOrder))); } catch (e) { next(e); }
 });
 apiRouter.get("/kpis", requirePermission("view:strategy"), async (_req, res, next) => {
-  try { res.json(await db.select().from(s.kpis).orderBy(asc(s.kpis.code))); } catch (e) { next(e); }
+  try { res.json(await strategyRepo.kpiList()); } catch (e) { next(e); }
+});
+apiRouter.get("/kpis/:id", requirePermission("view:strategy"), async (req, res, next) => {
+  try {
+    const d = await strategyRepo.kpiDetail(Number(req.params.id));
+    if (!d) return res.status(404).json({ error: "المؤشر غير موجود" });
+    res.json(d);
+  } catch (e) { next(e); }
+});
+apiRouter.get("/impact", requirePermission("view:executive"), async (_req, res, next) => {
+  try { res.json(await strategyRepo.impact()); } catch (e) { next(e); }
+});
+apiRouter.get("/strategy", requirePermission("view:strategy"), async (_req, res, next) => {
+  try { res.json(await strategyRepo.strategyMap()); } catch (e) { next(e); }
 });
 apiRouter.get("/portfolios", requirePermission("view:portfolio"), async (_req, res, next) => {
   try {
@@ -66,7 +81,17 @@ apiRouter.get("/sectors", requirePermission("view:geo"), async (_req, res, next)
   try { res.json(await db.select().from(s.sectors).orderBy(asc(s.sectors.id))); } catch (e) { next(e); }
 });
 apiRouter.get("/decisions", requirePermission("view:executive"), async (_req, res, next) => {
-  try { res.json(await db.select().from(s.decisions).orderBy(asc(s.decisions.code))); } catch (e) { next(e); }
+  try { res.json(await strategyRepo.decisions()); } catch (e) { next(e); }
+});
+/** CEO decision workflow — status change is audited in change_log (FR-E-05, FR-D-04). */
+apiRouter.post("/decisions/:id/decide", requirePermission("decisions:decide"), async (req, res, next) => {
+  try {
+    const status = req.body?.status;
+    if (!["معتمد", "مرفوض", "مؤجل"].includes(status)) return res.status(400).json({ error: "حالة القرار غير صحيحة" });
+    const d = await strategyRepo.decide(Number(req.params.id), status, req.session.userId!, typeof req.body?.noteAr === "string" ? req.body.noteAr : undefined);
+    if (!d) return res.status(404).json({ error: "القرار غير موجود" });
+    res.json(d);
+  } catch (e) { next(e); }
 });
 apiRouter.get("/risks", requirePermission("view:performance"), async (_req, res, next) => {
   try { res.json(await db.select().from(s.risks).orderBy(desc(sql`${s.risks.probability} * ${s.risks.impact}`))); } catch (e) { next(e); }
