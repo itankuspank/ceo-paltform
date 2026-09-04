@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Platform font: Sakkal Majalla (primary) → IBM Plex Sans Arabic (bundled fallback, OFL).
+   Sakkal Majalla resolves from the device (Windows ships it); if the TTFs are placed in /fonts they are served locally too.
+   size-adjust compensates for Sakkal Majalla's smaller apparent size so layouts keep the prototype's proportions. */
+@font-face { font-family: "Sakkal Majalla"; font-weight: 400; font-style: normal; font-display: swap; size-adjust: 112%;
+  src: local("Sakkal Majalla"), local("SakkalMajalla"), url("/fonts/majalla.woff2") format("woff2"), url("/fonts/majalla.ttf") format("truetype"); }
+@font-face { font-family: "Sakkal Majalla"; font-weight: 700; font-style: normal; font-display: swap; size-adjust: 112%;
+  src: local("Sakkal Majalla Bold"), local("SakkalMajalla-Bold"), local("SakkalMajallaBold"), url("/fonts/majalla.woff2") format("woff2"), url("/fonts/majalla.ttf") format("truetype"); }
+
+@layer base {
+  html { font-family: "Sakkal Majalla", "IBM Plex Sans Arabic", Tahoma, Arial, sans-serif; }
+  body { @apply bg-brand-cream text-brand-text antialiased; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cfd4d0; border-radius: 8px; }
+}
+
+@layer components {
+  .card { @apply bg-white border border-brand-border rounded-xl shadow-card; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
+  .page-title { @apply text-[26px] font-bold text-brand-text leading-tight; }
+  .page-subtitle { @apply text-[11px] tracking-wide text-brand-muted; }
+  .section-title { @apply text-[15px] font-bold text-brand-text; }
+  .section-subtitle { @apply text-[10.5px] text-brand-muted; }
+}
+
+.recharts-text { font-family: inherit; }

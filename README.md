@@ -7,7 +7,9 @@
 > administration console (ownership · approvals · audit · revert · relations · archive · CSV · users), data quality & integration,
 > architecture, the capability-development module (11 screens incl. the English CEFR dashboard and the readiness index),
 > and — Sprint 8 — the **dynamic workflow engine** (stages/owners/SLAs edited in the console) with the **budget module**
-> (operating & initiatives budgets, spending-rate vs plan, S-curves, transfers through the workflow, CEO decision inbox).
+> (operating & initiatives budgets, spending-rate vs plan, S-curves, transfers through the workflow, CEO decision inbox),
+> and — Sprint 9 — **الهياكل التنظيمية**: the approved structure registry (5 levels), the explorer with search and unit profiles,
+> structure requests through the governance workflow with as-is/to-be, structural health indicators, and roadmap linkage.
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.
