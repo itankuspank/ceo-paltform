@@ -13,6 +13,7 @@ type Overview = {
   budget: { opexApproved: number; opexActual: number; opexSpendPct: number; expectedPct: number };
   org: { pending: number; units: number; awaitingCeo: number };
   talent: { needed: number; filled: number; pipeline: number; fillRate: number };
+  innovation: { index: number; level: number; ideasInPipeline: number };
   kpis: { investment: number; impact: number; portfolios: number; projects: number; kpiCount: number; kpisAtRisk: number; pendingDecisions: number; forecastImpact: number; targetImpact: number; programs: number; lastSync: string | null };
   impactSeries: { month: number; actual: number; target: number }[];
   portfolioHealth: { status: "on_track" | "at_risk" | "off_track"; value: number }[];
@@ -67,7 +68,11 @@ export default function OverviewPage() {
         <KpiCard label="الأثر المتوقع عند الإكمال" value={fmtPct(k.forecastImpact)} sub="Forecast at completion" tone="green" />
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-3">
+      <div className="mt-3 grid grid-cols-5 gap-3">
+      <Link to="/innovation" className="card px-4 py-2.5 flex items-center justify-between hover:border-brand-green/50">
+        <div className="flex items-center gap-2"><span className="text-[11px] text-brand-muted">نضج الابتكار</span><span className={`text-[20px] font-bold num ${data.innovation.index >= 4 ? "text-rag-green" : data.innovation.index >= 3 ? "text-[#9A6B0F]" : "text-rag-red"}`}>{data.innovation.index}<span className="text-[11px] text-brand-muted">/5</span></span></div>
+        <div className="text-[11px] text-brand-muted">{data.innovation.ideasInPipeline} فكرة <span className="font-semibold text-brand-green mr-1">الابتكار <ChevronLeft className="inline h-3 w-3" /></span></div>
+      </Link>
       <Link to="/talent" className="card px-4 py-2.5 flex items-center justify-between hover:border-brand-green/50">
         <div className="flex items-center gap-3"><span className="text-[11px] text-brand-muted">نسبة شغل الاحتياج</span><span className={`text-[20px] font-bold num ${data.talent.fillRate >= 60 ? "text-rag-green" : "text-[#9A6B0F]"}`}>{data.talent.fillRate}%</span></div>
         <div className="text-[11px] text-brand-muted">{data.talent.filled}/{data.talent.needed} · {data.talent.pipeline} في الخط <span className="font-semibold text-brand-green mr-1">الاستقطاب <ChevronLeft className="inline h-3 w-3" /></span></div>

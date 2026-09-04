@@ -98,8 +98,12 @@ export class OverviewRepository {
     const [tp] = await this.db.select({ n: sql<number>`count(*)` }).from(s.candidates).where(eq(s.candidates.status, "قيد الإجراء"));
     const talent = { needed: Number(tq.needed), filled: Number(tq.filled), pipeline: Number(tp.n), fillRate: Number(tq.needed) ? Math.round((Number(tq.filled) / Number(tq.needed)) * 1000) / 10 : 0 };
 
+    const [inn] = await this.db.select({ idx: sql<number>`coalesce(avg(${s.innovationAssessments.overall}),0)`, n: sql<number>`count(*)` }).from(s.innovationAssessments).where(sql`${s.innovationAssessments.cycle} = '2026-H2' and ${s.innovationAssessments.status} = 'منشور' and ${s.innovationAssessments.subjectType} = 'region'`);
+    const [ideas] = await this.db.select({ n: sql<number>`count(*) filter (where ${s.innovationIdeas.status} = 'قيد الإجراء')` }).from(s.innovationIdeas);
+    const innovation = { index: Math.round(Number(inn.idx) * 100) / 100, level: Math.round(Number(inn.idx)), ideasInPipeline: Number(ideas.n) };
+
     return {
-      capability, budget, org, talent,
+      capability, budget, org, talent, innovation,
       kpis: {
         investment: t.investment, impact: t.impact, portfolios: Number(t.portfolios), projects: Number(t.projects), kpiCount: Number(t.kpis),
         kpisAtRisk: Number(t.kpisOffTrack), pendingDecisions: Number(t.pendingDecisions), forecastImpact: t.forecastImpact, targetImpact: 90,

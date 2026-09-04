@@ -19,12 +19,12 @@ export const MODULE_LABELS: Record<Module, string> = { core: "بيانات ال�
 
 export type Permission =
   | "view:executive" | "view:strategy" | "view:portfolio" | "view:geo" | "view:performance"
-  | "view:governance" | "view:data" | "view:system" | "view:learning" | "view:budget" | "view:org" | "view:talent"
+  | "view:governance" | "view:data" | "view:system" | "view:learning" | "view:budget" | "view:org" | "view:talent" | "view:innovation"
   | "data:edit" | "data:approve" | "data:override" | "data:import" | "decisions:decide" | "users:manage";
 
 const ALL_VIEWS: Permission[] = [
   "view:executive", "view:strategy", "view:portfolio", "view:geo", "view:performance",
-  "view:governance", "view:data", "view:system", "view:learning", "view:budget", "view:org", "view:talent",
+  "view:governance", "view:data", "view:system", "view:learning", "view:budget", "view:org", "view:talent", "view:innovation",
 ];
 
 export const PERMISSIONS: Record<Role, Permission[]> = {

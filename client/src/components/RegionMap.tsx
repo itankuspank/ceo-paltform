@@ -2,14 +2,15 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-export type MapMode = "impact" | "investment" | "initiatives" | "risks";
-export type RegionMetric = { code: string; nameAr: string; impact: number; investment: number; initiatives: number; risks: number; status: string };
+export type MapMode = "impact" | "investment" | "initiatives" | "risks" | "maturity";
+export type RegionMetric = { code: string; nameAr: string; impact: number; investment: number; initiatives: number; risks: number; status: string; maturity?: number };
 
 const KINGDOM_BOUNDS: [[number, number], [number, number]] = [[34.4, 15.9], [55.8, 32.3]];
 
 /** Color scales per mode — impact uses the legend thresholds; others interpolate over the data range. */
 function fillExpression(mode: MapMode, max: number): any {
   if (mode === "impact") return ["step", ["get", "impact"], "#C63B3B", 60, "#E2792C", 75, "#C9A227", 85, "#0F6B4B"];
+  if (mode === "maturity") return ["step", ["get", "maturity"], "#C63B3B", 1.5, "#E2792C", 2.5, "#C9A227", 3.5, "#3E8E5E", 4.5, "#0E3F36"];
   const ramp = mode === "risks" ? ["#F6DADA", "#C63B3B"] : ["#D8E9DF", "#0E3F36"];
   return ["interpolate", ["linear"], ["get", mode], 0, ramp[0], Math.max(1, max), ramp[1]];
 }
@@ -53,7 +54,7 @@ export default function RegionMap({ geojson, metrics, mode, selected, onSelect }
         if (hovered && hovered !== f.properties.code) m.setFeatureState({ source: "regions", id: hovered }, { hover: false });
         hovered = f.properties.code; m.setFeatureState({ source: "regions", id: hovered! }, { hover: true });
         const p = f.properties;
-        popup.setLngLat(e.lngLat).setHTML(`<div dir="rtl" style="font-family:inherit;font-size:11px;line-height:1.5"><b>${p.nameAr}</b><br/>الأثر المحقق: ${p.impact ?? "—"}% · مبادرات: ${p.initiatives ?? "—"}</div>`).addTo(m);
+        popup.setLngLat(e.lngLat).setHTML(p.maturity !== undefined ? `<div dir="rtl" style="font-family:inherit;font-size:11px;line-height:1.5"><b>${p.nameAr}</b><br/>نضج الابتكار: ${p.maturity} / 5</div>` : `<div dir="rtl" style="font-family:inherit;font-size:11px;line-height:1.5"><b>${p.nameAr}</b><br/>الأثر المحقق: ${p.impact ?? "—"}% · مبادرات: ${p.initiatives ?? "—"}</div>`).addTo(m);
       });
       m.on("mouseleave", "regions-fill", () => { m.getCanvas().style.cursor = ""; if (hovered) m.setFeatureState({ source: "regions", id: hovered }, { hover: false }); hovered = null; popup.remove(); });
       m.on("click", "regions-fill", (e) => { const code = e.features?.[0]?.properties.code; if (code) onSelectRef.current(code); });
@@ -77,7 +78,7 @@ export default function RegionMap({ geojson, metrics, mode, selected, onSelect }
     const apply = () => {
       const src = m.getSource("regions") as maplibregl.GeoJSONSource | undefined; if (!src) return;
       src.setData(merged());
-      const max = Math.max(...Object.values(metrics).map((x) => x[mode] as number), 1);
+      const max = Math.max(...Object.values(metrics).map((x) => (x[mode] as number) ?? 0), 1);
       m.setPaintProperty("regions-fill", "fill-color", fillExpression(mode, max));
     };
     if (m.isStyleLoaded()) apply(); else m.once("load", apply);

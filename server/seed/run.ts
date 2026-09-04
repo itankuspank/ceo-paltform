@@ -11,6 +11,7 @@ import { generateLearning, PROVIDERS } from "./learning";
 import { generateBudget, WORKFLOW_DEFINITIONS, CLOSED_MONTH } from "./budget";
 import { generateOrg } from "./org";
 import { generateTalent } from "./talent";
+import { generateInnovation, DIMENSIONS } from "./innovation";
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@2026";
 const R = rng(20260911);
@@ -29,6 +30,7 @@ async function main() {
   const w = generateWorld();
 
   await db.execute(sql`TRUNCATE TABLE
+    innovation_ideas, innovation_targets, innovation_assessments, innovation_dimensions,
     candidates, requisitions,
     org_request_units, org_requests, org_units,
     workflow_history, workflow_instances, workflow_definitions, budget_transfers, budget_months, budget_lines, initiative_budget_years, cost_centers,
@@ -75,7 +77,7 @@ async function main() {
     code: p.code, nameAr: p.nameAr, programId: prgId[p.programCode], portfolioId: pfId[p.pf], sectorId: sectorId[p.sector], goalId: goalId[p.goal],
     managerName: p.managerName, phase: p.phase, progress: p.progress, scheduleStatus: p.scheduleStatus, financialStatus: p.financialStatus, status: p.status,
     impactTarget: p.impactTarget, impactAchieved: p.impactAchieved, impactContribution: p.impactContribution, priorityScore: p.priorityScore,
-    startDate: p.startDate, endDate: p.endDate, tags: [7, 18, 33, 52, 71, 90].includes(Number(p.code.slice(4))) ? ["تنظيمي"] : [],
+    startDate: p.startDate, endDate: p.endDate, tags: [7, 18, 33, 52, 71, 90].includes(Number(p.code.slice(4))) ? ["تنظيمي"] : [3, 11, 24, 40, 57, 63, 78, 95].includes(Number(p.code.slice(4))) ? ["ابتكار"] : [],
   }))).returning();
   const prjId = Object.fromEntries(prjRows.map((x) => [x.code, x.id]));
 
@@ -153,6 +155,25 @@ async function main() {
     if (c.dropped) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: R.pick(["اعتذار المرشح", "عدم اجتياز المقابلة", "عدم موافقة الجهة"]), userId: dataUser.id, createdAt: entered });
     await db.insert(s.workflowHistory).values(hist);
   }
+  // innovation maturity
+  await db.insert(s.innovationDimensions).values(DIMENSIONS);
+  const Inn = generateInnovation(sectorRows, regionRows);
+  await db.insert(s.innovationAssessments).values(Inn.assessments);
+  await db.insert(s.innovationTargets).values(Inn.targets);
+  const ideaDef = defRows.find((d) => d.key === "innovation_idea")!;
+  const innovProjects = prjRows.filter((p) => p.tags.includes("ابتكار"));
+  for (const [i, idea] of Inn.ideas.entries()) {
+    const [row] = await db.insert(s.innovationIdeas).values({ code: idea.code, titleAr: idea.titleAr, descriptionAr: idea.descriptionAr, category: idea.category, sourceType: idea.sourceType, sourceId: idea.sourceId, submittedByAr: idea.submittedByAr, submittedAt: idea.submittedAt, impactValue: idea.impactValue, impactNoteAr: idea.impactNoteAr, linkedProjectId: idea.scaled ? innovProjects[i % innovProjects.length]?.id ?? null : null, status: idea.status }).returning();
+    const stageKey = ideaDef.stages[idea.stageIndex].key; const entered = new Date(Date.now() - 86400000 * idea.daysAgoStage);
+    const [inst] = await db.insert(s.workflowInstances).values({ definitionId: ideaDef.id, entity: "innovation_ideas", entityId: row.id, currentStage: stageKey, stageEnteredAt: entered, status: idea.scaled ? "completed" : idea.dropped ? "rejected" : "active", completedAt: idea.scaled || idea.dropped ? entered : null, createdAt: new Date(idea.submittedAt) }).returning();
+    const hist = [{ instanceId: inst.id, fromStage: null as string | null, toStage: ideaDef.stages[0].key, action: "start", noteAr: null as string | null, userId: dataUser.id, createdAt: new Date(idea.submittedAt) }];
+    for (let k = 0; k < idea.stageIndex; k++) hist.push({ instanceId: inst.id, fromStage: ideaDef.stages[k].key, toStage: ideaDef.stages[k + 1].key, action: "approve", noteAr: null, userId: dataUser.id, createdAt: new Date(new Date(idea.submittedAt).getTime() + 86400000 * (k * 12 + 6)) });
+    if (idea.scaled) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "approve", noteAr: "اعتماد التوسع على مستوى الوزارة", userId: dataUser.id, createdAt: entered });
+    if (idea.dropped) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: "نتائج التجربة دون المستهدف", userId: dataUser.id, createdAt: entered });
+    await db.insert(s.workflowHistory).values(hist);
+  }
+  console.log(`✓ الابتكار: ${DIMENSIONS.length} أبعاد · ${Inn.assessments.length} تقييماً · ${Inn.ideas.length} فكرة`);
+
   console.log(`✓ الاستقطاب: ${rqRows.length} احتياجاً · ${Tl.candidates.length} مرشحاً · ${Tl.candidates.filter((c) => c.onboarded).length} مباشرة`);
 
   console.log(`✓ الهياكل التنظيمية: ${ouRows.length} وحدة تنظيمية · ${O.requests.length} طلباً`);

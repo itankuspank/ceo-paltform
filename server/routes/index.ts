@@ -14,6 +14,7 @@ import { WorkflowEngine, WorkflowError } from "../workflow";
 import { BudgetRepository } from "../repositories/budget";
 import { OrgRepository } from "../repositories/org";
 import { TalentRepository } from "../repositories/talent";
+import { InnovationRepository } from "../repositories/innovation";
 import { inScope, type Module } from "../../shared/rbac";
 
 export const apiRouter: Router = express.Router();
@@ -29,6 +30,7 @@ const wf = new WorkflowEngine(db);
 const budgetRepo = new BudgetRepository(db, wf);
 const orgRepo = new OrgRepository(db, wf);
 const talentRepo = new TalentRepository(db, wf);
+const innovationRepo = new InnovationRepository(db, wf);
 const actorFull = (req: express.Request) => ({ userId: req.session.userId!, role: req.session.role!, modules: req.session.modules });
 const actorOf = (req: express.Request) => ({ userId: req.session.userId!, role: req.session.role! });
 const W = (fn: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -52,8 +54,17 @@ apiRouter.post("/workflow/:instanceId/act", requirePermission("view:executive"),
   if (r.instance.entity === "budget_transfers" && r.outcome !== "active") await budgetRepo.applyTransferOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
   if (r.instance.entity === "org_requests" && r.outcome !== "active") await orgRepo.applyOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
   if (r.instance.entity === "candidates" && r.outcome !== "active") await talentRepo.applyOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
+  if (r.instance.entity === "innovation_ideas" && r.outcome !== "active") await innovationRepo.applyOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
   return r;
 }));
+
+// ---------------------------------------------------------------- innovation maturity
+apiRouter.get("/innovation/map", requirePermission("view:innovation"), W(() => innovationRepo.map()));
+apiRouter.get("/innovation/matrix", requirePermission("view:innovation"), W(() => innovationRepo.matrix()));
+apiRouter.get("/innovation/ideas", requirePermission("view:innovation"), W(() => innovationRepo.ideas()));
+apiRouter.post("/innovation/assessments", requirePermission("data:edit"), scoped("innovation"), W((req) => innovationRepo.submitAssessment(req.body ?? {}, actorOf(req))));
+apiRouter.post("/innovation/assessments/:id/publish", requirePermission("data:approve"), W((req) => innovationRepo.publishAssessment(Number(req.params.id), actorOf(req))));
+apiRouter.post("/innovation/ideas", requirePermission("data:edit"), scoped("innovation"), W((req) => innovationRepo.createIdea(req.body ?? {}, actorOf(req))));
 
 // ---------------------------------------------------------------- talent acquisition
 apiRouter.get("/talent/dashboard", requirePermission("view:talent"), W((req) => talentRepo.dashboard(actorFull(req))));
@@ -193,6 +204,7 @@ apiRouter.get("/decisions", requirePermission("view:executive"), async (req, res
       if (it.entity === "budget_transfers") { const t = (await budgetRepo.transfers()).find((x) => x.id === it.entityId); if (t) items.push({ ...it, titleAr: `مناقلة ${t.code}: ${t.from?.cc} — ${t.from?.category} ← ${t.to?.category}`, amount: t.amount, detailAr: t.justificationAr, link: "/budget/opex" }); }
       else if (it.entity === "org_requests") { const r = await orgRepo.request(it.entityId); if (r) items.push({ ...it, titleAr: `${r.request.code}: ${r.request.titleAr}`, amount: null, detailAr: `${r.request.type} · ${r.request.requestingUnit} · أثر ${r.request.impactHeadcount >= 0 ? "+" : ""}${r.request.impactHeadcount} وظيفة · ${r.request.impactBudget} مليون/سنة · جهة القرار: ${r.request.decisionAuthority}`, link: `/org/requests/${r.request.id}` }); }
       else if (it.entity === "candidates") { const c = (await talentRepo.pipeline(actorFull(req))).find((x) => x.id === it.entityId); if (c) items.push({ ...it, titleAr: `${it.definitionName}: ${c.roleAr} — ${c.nameAr}`, amount: null, detailAr: `${c.sectorName}${c.projectName ? ` · ${c.projectName}` : ""} · ${c.sourceAr ?? ""} · الفحص الأمني: ${c.clearanceStatus}${c.isSenior ? " · وظيفة قيادية" : ""}`, link: "/talent/pipeline" }); }
+      else if (it.entity === "innovation_ideas") { const idea = (await innovationRepo.ideas()).ideas.find((x) => x.id === it.entityId); if (idea) items.push({ ...it, titleAr: `${idea.code}: ${idea.titleAr}`, amount: idea.impactValue, detailAr: `قرار التوسع · ${idea.category} · المصدر: ${idea.sourceName} · أثر تقديري ${idea.impactValue} مليون ريال/سنة`, link: "/innovation/ideas" }); }
       else items.push({ ...it, titleAr: `${it.definitionName} #${it.entityId}`, amount: null, detailAr: null, link: null });
     }
     res.json({ ...d, workflowItems: items });

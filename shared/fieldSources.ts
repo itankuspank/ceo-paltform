@@ -36,6 +36,8 @@ export const FIELD_SOURCES: Record<string, Record<string, FieldSource>> = {
   org_requests: { titleAr: "manual", type: "manual", priority: "manual", status: "computed" },
   requisitions: { roleAr: "manual", count: "manual", filled: "computed", status: "computed" },
   candidates: { nameAr: "odoo", clearanceStatus: "manual", monthlyRate: "manual", status: "computed" },
+  innovation_assessments: { overall: "computed", level: "computed", status: "manual" },
+  innovation_ideas: { titleAr: "manual", impactValue: "manual", status: "computed" },
 };
 
 /** Fields that require an approval workflow before publishing (FR-D-05). */
@@ -49,4 +51,5 @@ export const SENSITIVE_FIELDS: Record<string, string[]> = {
   initiative_budget_years: ["approved"],
   org_units: ["parentId", "status", "level"],
   candidates: ["clearanceStatus"],
+  innovation_assessments: ["status"],
 };

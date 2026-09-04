@@ -1,6 +1,6 @@
 import {
   Gauge, Target, Gavel, GitBranch, LineChart, LayoutGrid, Briefcase, Layers, ListChecks, Map, Building2,
-  Wallet, Users, AlertTriangle, Link2, Scale, BarChart3, GraduationCap, Database, Activity, Network, Landmark, Building, UserPlus, type LucideIcon,
+  Wallet, Users, AlertTriangle, Link2, Scale, BarChart3, GraduationCap, Database, Activity, Network, Landmark, Building, UserPlus, Lightbulb, type LucideIcon,
 } from "lucide-react";
 
 export type NavItem = { path: string; labelAr: string; labelEn: string; icon: LucideIcon; sprint?: number };
@@ -45,6 +45,9 @@ export const NAV: NavGroup[] = [
   ]},
   { labelAr: "الاستقطاب", items: [
     { path: "/talent", labelAr: "مسار الاستقطاب", labelEn: "Talent Acquisition", icon: UserPlus },
+  ]},
+  { labelAr: "الابتكار", items: [
+    { path: "/innovation", labelAr: "نضج الابتكار والأفكار", labelEn: "Innovation Maturity", icon: Lightbulb },
   ]},
   { labelAr: "تطوير وبناء القدرات", items: [
     { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap },

@@ -8,6 +8,7 @@ import { apiRouter, publicRouter } from "./routes";
 import { setupClient } from "./vite";
 
 const app = express();
+const server = createServer(app);
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "2mb" }));
@@ -45,7 +46,6 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 const port = Number(process.env.PORT ?? 5000);
-const httpServer = createServer(app);
-setupClient(app, httpServer).then(() => {
-  httpServer.listen(port, "0.0.0.0", () => console.log(`✓ المنصة تعمل على المنفذ ${port} (${process.env.NODE_ENV ?? "development"})`));
+setupClient(app, server).then(() => {
+  server.listen(port, "0.0.0.0", () => console.log(`✓ المنصة تعمل على المنفذ ${port} (${process.env.NODE_ENV ?? "development"})`));
 });

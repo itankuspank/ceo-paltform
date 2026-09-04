@@ -11,7 +11,9 @@
 > and — Sprint 9 — **الهياكل التنظيمية**: the approved structure registry (5 levels), the explorer with search and unit profiles,
 > structure requests through the governance workflow with as-is/to-be, structural health indicators, and roadmap linkage,
 > and — Sprint 10 — **مسار الاستقطاب**: demand vs supply, the three engagement routes (متعاقد · مكلّف · معار) on the engine,
-> Kanban pipeline with SLA aging, clearance gate, name privacy by role, and onboarding that creates the HR resource record.
+> Kanban pipeline with SLA aging, clearance gate, name privacy by role, and onboarding that creates the HR resource record,
+> and — Sprint 11 — **مسار الابتكار**: ISO 56002-aligned maturity model (6 dimensions × 5 levels) assessed per sector and region
+> by cycle with targets and trend, the maturity map, the sectors × dimensions matrix, and the idea pipeline to CEO scale-up decisions.
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.

@@ -637,3 +637,61 @@ export const candidates = pgTable("candidates", {
   status: text("status").notNull().default("قيد الإجراء"), // قيد الإجراء | مباشر | مستبعد
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("candidates_req_idx").on(t.requisitionId)]);
+
+// ================================================================ innovation maturity — مسار الابتكار (ISO 56002-aligned, 6 dimensions × 5 levels)
+export const MATURITY_LEVELS = ["مبتدئ", "ناشئ", "محدد", "مُدار", "رائد"] as const;   // 1..5
+export const IDEA_CATEGORIES = ["خدمة", "عملية", "تقنية", "نموذج تشغيل", "سياسة"] as const;
+
+export const innovationDimensions = pgTable("innovation_dimensions", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  nameAr: text("name_ar").notNull(),
+  nameEn: text("name_en").notNull(),
+  weight: real("weight").notNull(),                 // sums to 100
+  descriptionAr: text("description_ar").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+});
+
+export const innovationAssessments = pgTable("innovation_assessments", {
+  id: serial("id").primaryKey(),
+  cycle: text("cycle").notNull(),                   // 2026-H1 · 2026-H2
+  subjectType: text("subject_type").notNull(),      // sector | region
+  subjectId: integer("subject_id").notNull(),
+  scores: json("scores").$type<Record<string, number>>().notNull(),  // dimension key → 1..5
+  overall: real("overall").notNull(),               // weighted average 1..5
+  level: integer("level").notNull(),                // rounded overall
+  assessorAr: text("assessor_ar").notNull(),
+  evidenceAr: text("evidence_ar"),
+  status: text("status").notNull().default("منشور"), // مسودة | منشور
+  assessedAt: date("assessed_at").notNull(),
+}, (t) => [index("ia_subject_idx").on(t.subjectType, t.subjectId, t.cycle)]);
+
+export const innovationTargets = pgTable("innovation_targets", {
+  id: serial("id").primaryKey(),
+  cycle: text("cycle").notNull(),
+  subjectType: text("subject_type").notNull(),
+  subjectId: integer("subject_id").notNull(),
+  targetLevel: real("target_level").notNull(),
+});
+
+export const innovationIdeas = pgTable("innovation_ideas", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),            // IDEA-001
+  titleAr: text("title_ar").notNull(),
+  descriptionAr: text("description_ar").notNull(),
+  category: text("category").notNull(),
+  sourceType: text("source_type").notNull(),        // sector | region
+  sourceId: integer("source_id").notNull(),
+  submittedByAr: text("submitted_by_ar").notNull(),
+  submittedAt: date("submitted_at").notNull(),
+  impactValue: real("impact_value").notNull().default(0),   // SAR millions / year (estimated → realised on scale)
+  impactNoteAr: text("impact_note_ar"),
+  linkedProjectId: integer("linked_project_id").references(() => projects.id),
+  status: text("status").notNull().default("قيد الإجراء"), // قيد الإجراء | موسّعة | مستبعدة
+});
+
+/** Overall maturity = weighted average of dimension scores (weights sum to 100). */
+export function maturityOverall(scores: Record<string, number>, dims: { key: string; weight: number }[]): number {
+  const tw = dims.reduce((a, d) => a + d.weight, 0) || 1;
+  return Math.round((dims.reduce((a, d) => a + (scores[d.key] ?? 0) * d.weight, 0) / tw) * 100) / 100;
+}

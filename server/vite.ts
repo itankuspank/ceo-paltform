@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** Dev: Vite middleware with HMR. Prod: serve the built client. Single process, single port. */
-export async function setupClient(app: Express, httpServer: Server) {
+export async function setupClient(app: Express, server: Server) {
   if (process.env.NODE_ENV === "production") {
     const dist = path.resolve(here, "public");
     if (!fs.existsSync(dist)) throw new Error(`Client build not found at ${dist}. Run: npm run build`);
@@ -19,7 +19,7 @@ export async function setupClient(app: Express, httpServer: Server) {
   const { createServer } = await import("vite");
   const vite = await createServer({
     configFile: path.resolve(here, "..", "vite.config.ts"),
-    server: { middlewareMode: true, hmr: { server: httpServer } },
+    server: { middlewareMode: true, hmr: { server } },
     appType: "custom",
   });
   app.use(vite.middlewares);
