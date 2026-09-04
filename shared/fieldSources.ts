@@ -28,6 +28,10 @@ export const FIELD_SOURCES: Record<string, Record<string, FieldSource>> = {
   programs: { managerName: "project_server", status: "computed" },
   risks: { probability: "project_server", impact: "project_server", response: "manual", status: "manual" },
   decisions: { titleAr: "manual", amount: "manual", status: "manual" },
+  cost_centers: { code: "manual", nameAr: "manual", type: "manual", sectorId: "manual" },
+  budget_lines: { approved: "manual", committed: "odoo", actual: "odoo", chapter: "manual", category: "manual" },
+  initiative_budget_years: { requested: "manual", approved: "manual", committed: "odoo", actual: "odoo", fundingSource: "manual" },
+  budget_transfers: { amount: "manual", justificationAr: "manual", status: "computed" },
 };
 
 /** Fields that require an approval workflow before publishing (FR-D-05). */
@@ -37,4 +41,6 @@ export const SENSITIVE_FIELDS: Record<string, string[]> = {
   projects: ["impactTarget", "goalId"],
   financials: ["budget"],
   decisions: ["status"],
+  budget_lines: ["approved"],
+  initiative_budget_years: ["approved"],
 };

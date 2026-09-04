@@ -6,12 +6,13 @@ import { api, post } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Panel, ProgressBar, PageHeader, SourcesFooter, Loading, ErrorBox, Chip, Empty } from "@/components/ui";
 import { SOURCE_LABELS, type FieldSource } from "@shared/fieldSources";
-import { ROLE_LABELS } from "@shared/rbac";
+import { ROLE_LABELS, MODULES, MODULE_LABELS } from "@shared/rbac";
+import { ROLES } from "@shared/schema";
 
 type Col = { key: string; labelAr: string; type: string; options?: string[]; fk?: string; required?: boolean; readOnly?: boolean; source: FieldSource; sensitive: boolean };
 type Ent = { key: string; labelAr: string; labelEn: string; group: string; sourceAr: string; archivable: boolean; columns: Col[] };
-type View = { kind: "entity"; key: string } | { kind: "quality" | "requests" | "changelog" | "archive" | "users" | "relations" };
-const GOV_VIEWS = [["quality", "جودة البيانات"], ["requests", "اعتماد التغييرات"], ["changelog", "سجل التغييرات"], ["archive", "الأرشيف"], ["relations", "إدارة العلاقات"], ["users", "المستخدمون والصلاحيات"]] as const;
+type View = { kind: "entity"; key: string } | { kind: "quality" | "requests" | "changelog" | "archive" | "users" | "relations" | "workflows" };
+const GOV_VIEWS = [["quality", "جودة البيانات"], ["requests", "اعتماد التغييرات"], ["changelog", "سجل التغييرات"], ["archive", "الأرشيف"], ["relations", "إدارة العلاقات"], ["workflows", "مسارات العمل"], ["users", "المستخدمون والصلاحيات"]] as const;
 const SRC_TONE: Record<FieldSource, "blue" | "gold" | "neutral" | "on_track"> = { project_server: "blue", odoo: "gold", manual: "neutral", computed: "on_track" };
 const inp = "w-full rounded-md border border-brand-border bg-white px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-brand-green/30 disabled:bg-brand-cream disabled:text-brand-muted";
 
@@ -67,6 +68,7 @@ export default function DataAdminPage() {
           {view.kind === "archive" && <ArchiveView canApprove={can("data:approve")} say={say} />}
           {view.kind === "relations" && <RelationsView canEdit={can("data:edit")} say={say} />}
           {view.kind === "users" && (can("users:manage") ? <UsersView say={say} /> : <Panel title="المستخدمون والصلاحيات"><Empty label="هذه الشاشة متاحة لمدير النظام فقط" /></Panel>)}
+          {view.kind === "workflows" && <WorkflowsView canEdit={can("users:manage")} say={say} />}
         </div>
       </div>
       {drawer && ent && <Drawer ent={ent} mode={drawer.mode} row={drawer.row} onClose={() => setDrawer(null)} say={say} />}
@@ -265,19 +267,65 @@ function UsersView({ say }: { say: (m: string) => void }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: () => api<any[]>("/api/data/users") });
   const toggle = useMutation({ mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) => api(`/api/data/users/${id}`, { method: "PATCH", body: JSON.stringify({ isActive }) }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); qc.invalidateQueries({ queryKey: ["changelog"] }); say("تم تحديث حالة المستخدم"); }, onError: (e: any) => say(e.message) });
+  const setModules = useMutation({ mutationFn: ({ id, modules }: { id: number; modules: string[] }) => api(`/api/data/users/${id}`, { method: "PATCH", body: JSON.stringify({ modules }) }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); qc.invalidateQueries({ queryKey: ["changelog"] }); say("تم تحديث النطاقات المسندة — تسري عند تسجيل الدخول التالي"); }, onError: (e: any) => say(e.message) });
   if (isLoading || !data) return <Loading />;
   return (
     <Panel title="المستخدمون والصلاحيات" subtitle="Role-Based Access Control — في البيئة الإنتاجية تُدار الأدوار عبر مجموعات Active Directory">
-      <table className="w-full text-[11.5px]">
-        <thead><tr className="text-brand-muted text-[10px] border-b border-brand-border">{["المستخدم", "اسم الدخول", "الدور", "نطاق الصلاحية", "الحالة", ""].map((h) => <th key={h} className="py-1.5 text-right font-medium">{h}</th>)}</tr></thead>
+      <table className="w-full text-[11px]">
+        <thead><tr className="text-brand-muted text-[10px] border-b border-brand-border">{["المستخدم", "اسم الدخول", "الدور", "نطاق الصلاحية", "النطاقات المسندة", "الحالة", ""].map((h) => <th key={h} className="py-1.5 text-right font-medium">{h}</th>)}</tr></thead>
         <tbody>{data.map((u) => (
           <tr key={u.id} className="border-b border-brand-border/70 last:border-0">
             <td className="py-2 font-semibold">{u.fullName}</td><td className="py-2 font-mono text-[10.5px]">{u.username}</td><td className="py-2">{ROLE_LABELS[u.role as keyof typeof ROLE_LABELS]?.ar}</td><td className="py-2 text-brand-muted text-[10.5px]">{ROLE_LABELS[u.role as keyof typeof ROLE_LABELS]?.scopeAr}</td>
+            <td className="py-2">{u.role === "data_manager" ? <div className="flex flex-wrap gap-1">{MODULES.map((m) => <label key={m} className="flex items-center gap-1 text-[10px]"><input type="checkbox" disabled={m === "core"} checked={(u.modules ?? []).includes(m)} onChange={(e) => setModules.mutate({ id: u.id, modules: e.target.checked ? [...(u.modules ?? []), m] : (u.modules ?? []).filter((x: string) => x !== m) })} className="accent-brand-green" />{MODULE_LABELS[m]}</label>)}</div> : <span className="text-[10px] text-brand-muted">جميع النطاقات</span>}</td>
             <td className="py-2"><Chip tone={u.isActive ? "on_track" : "off_track"}>{u.isActive ? "نشط" : "معطل"}</Chip></td>
             <td className="py-2 text-left"><button onClick={() => toggle.mutate({ id: u.id, isActive: !u.isActive })} className="rounded-md border border-brand-border bg-white px-2 py-0.5 text-[10.5px] hover:bg-brand-cream">{u.isActive ? "تعطيل" : "تفعيل"}</button></td>
           </tr>
         ))}</tbody>
       </table>
+    </Panel>
+  );
+}
+
+
+// ---------------------------------------------------------------- dynamic workflow definitions editor
+type Stage = { key: string; nameAr: string; ownerRole: string; slaDays: number; requiresDecision?: boolean; decisionRole?: string };
+type Def = { id: number; key: string; nameAr: string; entity: string; stages: Stage[]; isActive: boolean; version: number };
+
+function WorkflowsView({ canEdit, say }: { canEdit: boolean; say: (m: string) => void }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["workflow-defs"], queryFn: () => api<Def[]>("/api/workflow/definitions") });
+  const [sel, setSel] = useState<string | null>(null); const [draft, setDraft] = useState<Stage[] | null>(null);
+  const save = useMutation({ mutationFn: ({ key, stages }: { key: string; stages: Stage[] }) => api(`/api/workflow/definitions/${key}`, { method: "PUT", body: JSON.stringify({ stages }) }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["workflow-defs"] }); qc.invalidateQueries({ queryKey: ["changelog"] }); setDraft(null); say("تم حفظ مسار العمل — الإصدار الجديد يسري على الطلبات القادمة"); }, onError: (e: any) => say(e.message) });
+  if (isLoading || !data) return <Loading />;
+  const def = data.find((d) => d.key === sel) ?? data[0]; const stages = draft ?? def.stages;
+  const upd = (i: number, patch: Partial<Stage>) => setDraft(stages.map((st, j) => (j === i ? { ...st, ...patch } : st)));
+  const move = (i: number, dir: -1 | 1) => { const a = [...stages]; const j = i + dir; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; setDraft(a); };
+  const inp = "rounded-md border border-brand-border bg-white px-2 py-1 text-[11px]";
+  return (
+    <Panel title="مسارات العمل الديناميكية" subtitle="المراحل والأدوار المالكة ومدد SLA وقرارات الرئيس التنفيذي تُعدَّل هنا وتسري فوراً على الطلبات الجديدة — دون تعديل برمجي">
+      <div className="flex flex-wrap gap-1.5 mb-3">{data.map((d) => <button key={d.key} onClick={() => { setSel(d.key); setDraft(null); }} className={clsx("chip border", def.key === d.key ? "bg-brand text-white border-brand" : "bg-white border-brand-border text-brand-muted")}>{d.nameAr} <span className="opacity-70">v{d.version}</span></button>)}</div>
+      <div className="text-[10.5px] text-brand-muted mb-2">الكيان: <span className="font-mono">{def.entity}</span> · الرمز: <span className="font-mono">{def.key}</span> · {stages.length} مراحل</div>
+      <table className="w-full text-[11px]">
+        <thead><tr className="text-brand-muted text-[10px] border-b border-brand-border">{["#", "المرحلة", "الرمز", "الدور المالك", "SLA (يوم)", "قرار تنفيذي", "دور القرار", ""].map((h) => <th key={h} className="py-1.5 text-right font-medium">{h}</th>)}</tr></thead>
+        <tbody>{stages.map((st, i) => (
+          <tr key={i} className="border-b border-brand-border/70 last:border-0">
+            <td className="py-1.5 num">{i + 1}</td>
+            <td className="py-1.5"><input disabled={!canEdit} value={st.nameAr} onChange={(e) => upd(i, { nameAr: e.target.value })} className={inp} /></td>
+            <td className="py-1.5"><input disabled={!canEdit} value={st.key} onChange={(e) => upd(i, { key: e.target.value.replace(/[^a-z0-9_]/g, "") })} className={clsx(inp, "font-mono w-28")} /></td>
+            <td className="py-1.5"><select disabled={!canEdit} value={st.ownerRole} onChange={(e) => upd(i, { ownerRole: e.target.value })} className={inp}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r].ar}</option>)}</select></td>
+            <td className="py-1.5"><input disabled={!canEdit} type="number" min={0} value={st.slaDays} onChange={(e) => upd(i, { slaDays: Number(e.target.value) })} className={clsx(inp, "w-16")} /></td>
+            <td className="py-1.5"><input disabled={!canEdit} type="checkbox" checked={!!st.requiresDecision} onChange={(e) => upd(i, { requiresDecision: e.target.checked, decisionRole: e.target.checked ? (st.decisionRole ?? "ceo") : undefined })} className="accent-brand-green" /></td>
+            <td className="py-1.5">{st.requiresDecision && <select disabled={!canEdit} value={st.decisionRole ?? "ceo"} onChange={(e) => upd(i, { decisionRole: e.target.value })} className={inp}>{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r].ar}</option>)}</select>}</td>
+            <td className="py-1.5 whitespace-nowrap">{canEdit && <><button onClick={() => move(i, -1)} className="px-1 text-brand-muted hover:text-brand-text">▲</button><button onClick={() => move(i, 1)} className="px-1 text-brand-muted hover:text-brand-text">▼</button><button onClick={() => setDraft(stages.filter((_, j) => j !== i))} className="px-1 text-rag-red">✕</button></>}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {canEdit && <div className="mt-3 flex items-center gap-2">
+        <button onClick={() => setDraft([...stages, { key: `stage_${stages.length + 1}`, nameAr: "مرحلة جديدة", ownerRole: "data_manager", slaDays: 5 }])} className="rounded-md border border-brand-border bg-white px-2.5 py-1.5 text-[11px] hover:bg-brand-cream">+ إضافة مرحلة</button>
+        <button disabled={!draft || save.isPending} onClick={() => draft && save.mutate({ key: def.key, stages: draft })} className="rounded-md bg-brand px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">حفظ المسار (إصدار جديد)</button>
+        {draft && <button onClick={() => setDraft(null)} className="text-[11px] text-brand-muted">تراجع</button>}
+      </div>}
+      {!canEdit && <div className="mt-2 text-[10.5px] text-brand-muted">وضع الاطلاع — تعديل المسارات من صلاحية مدير النظام.</div>}
     </Panel>
   );
 }

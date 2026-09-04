@@ -2,20 +2,21 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db";
 import * as s from "../../shared/schema";
 import { ENTITY_MAP, ENTITIES, coerce, fieldSource, isSensitive, type Entity } from "../data/registry";
-import { type Permission } from "../../shared/rbac";
+import { inScope, MODULES, type Permission } from "../../shared/rbac";
 
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
-type Actor = { userId: number; can: (p: Permission) => boolean };
+type Actor = { userId: number; role?: s.Role; modules?: string[]; can: (p: Permission) => boolean };
 
 export class DataRepository {
   constructor(private db: Db) {}
 
   entity(key: string): Entity { const e = ENTITY_MAP[key]; if (!e) throw new HttpError(404, "الكيان غير معروف"); return e; }
+  private scope(e: Entity, actor: Actor) { if (!inScope(actor.role, actor.modules, e.module ?? "core")) throw new HttpError(403, `نطاق «${e.labelAr}» غير مسند إلى حسابك`); }
 
   /** Metadata for the console: entities + column info incl. source & sensitivity, and date/end validation hints. */
   metadata() {
     return ENTITIES.map((e) => ({
-      key: e.key, labelAr: e.labelAr, labelEn: e.labelEn, group: e.group, sourceAr: e.sourceAr, archivable: !!e.archivable,
+      key: e.key, labelAr: e.labelAr, labelEn: e.labelEn, group: e.group, sourceAr: e.sourceAr, archivable: !!e.archivable, module: e.module ?? "core",
       columns: e.columns.map((c) => ({ ...c, options: c.options ? [...c.options] : undefined, source: fieldSource(e, c.key), sensitive: isSensitive(e, c.key) })),
     }));
   }
@@ -51,6 +52,7 @@ export class DataRepository {
   async update(key: string, id: number, changes: Record<string, unknown>, reasonAr: string | undefined, actor: Actor) {
     const e = this.entity(key);
     if (!actor.can("data:edit")) throw new HttpError(403, "لا تملك صلاحية تعديل البيانات");
+    this.scope(e, actor);
     const found = (await this.db.select().from(e.table).where(eq(e.table.id, id)).limit(1)) as any[];
     const before = found[0]; if (!before) throw new HttpError(404, "السجل غير موجود");
     const applied: Record<string, unknown> = {}; const queued: string[] = [];
@@ -77,6 +79,7 @@ export class DataRepository {
   async create(key: string, values: Record<string, unknown>, actor: Actor) {
     const e = this.entity(key);
     if (!actor.can("data:edit")) throw new HttpError(403, "لا تملك صلاحية إضافة البيانات");
+    this.scope(e, actor);
     if (key === "impact") throw new HttpError(400, "الأثر يُدار من سجل المبادرة");
     const row: Record<string, unknown> = {};
     for (const c of e.columns) { if (c.readOnly) continue; try { const v = coerce(c, values[c.key]); if (v !== null) row[c.key] = v; } catch (err: any) { throw new HttpError(400, err.message); } }
@@ -209,6 +212,7 @@ export class DataRepository {
   async importRows(key: string, rows: Record<string, unknown>[], actor: Actor) {
     const e = this.entity(key);
     if (!actor.can("data:import")) throw new HttpError(403, "الاستيراد يتطلب صلاحية الاستيراد");
+    this.scope(e, actor);
     if (key === "impact") throw new HttpError(400, "الأثر يُدار من سجل المبادرة");
     const hasCode = e.columns.some((c) => c.key === "code");
     const prepared: { code?: string; row: Record<string, unknown> }[] = [];
@@ -230,13 +234,15 @@ export class DataRepository {
 
   // ---------------------------------------------------------------- users
   async users() {
-    return this.db.select({ id: s.users.id, username: s.users.username, fullName: s.users.fullName, role: s.users.role, isActive: s.users.isActive, createdAt: s.users.createdAt }).from(s.users).orderBy(asc(s.users.id));
+    return this.db.select({ id: s.users.id, username: s.users.username, fullName: s.users.fullName, role: s.users.role, modules: s.users.modules, isActive: s.users.isActive, createdAt: s.users.createdAt }).from(s.users).orderBy(asc(s.users.id));
   }
-  async setUserActive(id: number, active: boolean, actor: Actor) {
+  async updateUser(id: number, patch: { isActive?: boolean; modules?: string[] }, actor: Actor) {
     if (!actor.can("users:manage")) throw new HttpError(403, "إدارة المستخدمين تتطلب صلاحية مدير النظام");
-    if (id === actor.userId) throw new HttpError(400, "لا يمكن تعطيل حسابك الحالي");
-    await this.db.update(s.users).set({ isActive: active }).where(eq(s.users.id, id));
-    await this.db.insert(s.changeLog).values({ entity: "users", entityId: id, field: "isActive", oldValue: String(!active), newValue: String(active), userId: actor.userId });
+    const [u] = await this.db.select().from(s.users).where(eq(s.users.id, id)).limit(1); if (!u) throw new HttpError(404, "المستخدم غير موجود");
+    const set: Record<string, unknown> = {}; const logs = [] as any[];
+    if (typeof patch.isActive === "boolean" && patch.isActive !== u.isActive) { if (id === actor.userId) throw new HttpError(400, "لا يمكن تعطيل حسابك الحالي"); set.isActive = patch.isActive; logs.push({ field: "isActive", oldValue: String(u.isActive), newValue: String(patch.isActive) }); }
+    if (Array.isArray(patch.modules)) { const mods = patch.modules.filter((m) => (MODULES as readonly string[]).includes(m)); if (!mods.includes("core")) mods.unshift("core"); set.modules = mods; logs.push({ field: "modules", oldValue: u.modules.join(","), newValue: mods.join(",") }); }
+    if (Object.keys(set).length) { await this.db.update(s.users).set(set).where(eq(s.users.id, id)); await this.db.insert(s.changeLog).values(logs.map((l) => ({ entity: "users", entityId: id, ...l, userId: actor.userId }))); }
     return { ok: true };
   }
 

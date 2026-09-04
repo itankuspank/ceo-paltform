@@ -10,6 +10,7 @@ import { fmtMoney, fmtPct, MONTHS_AR } from "@shared/format";
 
 type Overview = {
   capability: { index: number; status: string; criticalGaps: number };
+  budget: { opexApproved: number; opexActual: number; opexSpendPct: number; expectedPct: number };
   kpis: { investment: number; impact: number; portfolios: number; projects: number; kpiCount: number; kpisAtRisk: number; pendingDecisions: number; forecastImpact: number; targetImpact: number; programs: number; lastSync: string | null };
   impactSeries: { month: number; actual: number; target: number }[];
   portfolioHealth: { status: "on_track" | "at_risk" | "off_track"; value: number }[];
@@ -64,10 +65,16 @@ export default function OverviewPage() {
         <KpiCard label="الأثر المتوقع عند الإكمال" value={fmtPct(k.forecastImpact)} sub="Forecast at completion" tone="green" />
       </div>
 
-      <Link to="/learning/analysis" className="mt-3 card px-4 py-2.5 flex items-center justify-between hover:border-brand-green/50">
-        <div className="flex items-center gap-3"><span className="text-[11px] text-brand-muted">مؤشر جاهزية القدرات</span><span className={`text-[20px] font-bold num ${data.capability.status === "on_track" ? "text-rag-green" : data.capability.status === "at_risk" ? "text-[#9A6B0F]" : "text-rag-red"}`}>{data.capability.index}%</span><StatusChip status={data.capability.status} /></div>
-        <div className="flex items-center gap-3 text-[11px] text-brand-muted"><span>{data.capability.criticalGaps} فجوات حرجة</span><span>جاهزية المهارة = التغطية × 60% + إغلاق الفجوة × 40%</span><span className="font-semibold text-brand-green">تحليل القدرات <ChevronLeft className="inline h-3 w-3" /></span></div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+      <Link to="/budget" className="card px-4 py-2.5 flex items-center justify-between hover:border-brand-green/50">
+        <div className="flex items-center gap-3"><span className="text-[11px] text-brand-muted">نسبة صرف الميزانية التشغيلية</span><span className={`text-[20px] font-bold num ${Math.abs(data.budget.opexSpendPct - data.budget.expectedPct) < 10 ? "text-rag-green" : "text-[#9A6B0F]"}`}>{data.budget.opexSpendPct}%</span><Chip tone="neutral">المتوقع {data.budget.expectedPct}%</Chip></div>
+        <div className="text-[11px] text-brand-muted">{fmtMoney(data.budget.opexActual)} من {fmtMoney(data.budget.opexApproved)} <span className="font-semibold text-brand-green mr-2">الميزانية <ChevronLeft className="inline h-3 w-3" /></span></div>
       </Link>
+      <Link to="/learning/analysis" className="card px-4 py-2.5 flex items-center justify-between hover:border-brand-green/50">
+        <div className="flex items-center gap-3"><span className="text-[11px] text-brand-muted">مؤشر جاهزية القدرات</span><span className={`text-[20px] font-bold num ${data.capability.status === "on_track" ? "text-rag-green" : data.capability.status === "at_risk" ? "text-[#9A6B0F]" : "text-rag-red"}`}>{data.capability.index}%</span><StatusChip status={data.capability.status} /></div>
+        <div className="flex items-center gap-3 text-[11px] text-brand-muted"><span>{data.capability.criticalGaps} فجوات حرجة</span><span className="font-semibold text-brand-green">تحليل القدرات <ChevronLeft className="inline h-3 w-3" /></span></div>
+      </Link>
+      </div>
 
       <div className="mt-4 grid grid-cols-3 gap-4">
         <Panel className="col-span-2" title="الأثر المحقق مقابل المستهدف" subtitle="Actual Impact vs Target Impact — 2026">

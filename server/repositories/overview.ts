@@ -86,8 +86,12 @@ export class OverviewRepository {
     const readinessIndex = sk.length ? Math.round((sk.reduce((a, x) => a + skillReadiness(x), 0) / sk.length) * 10) / 10 : 0;
     const capability = { index: readinessIndex, status: readinessIndex >= 85 ? "on_track" : readinessIndex >= 70 ? "at_risk" : "off_track", criticalGaps: sk.filter((x) => x.importance === "حرجة" && skillReadiness(x) < 80).length };
 
+    const [bl] = await this.db.select({ approved: sql<number>`coalesce(sum(${s.budgetLines.approved}),0)`, actual: sql<number>`coalesce(sum(${s.budgetLines.actual}),0)` }).from(s.budgetLines).where(sql`${s.budgetLines.fiscalYear} = 2026 and ${s.budgetLines.kind} = 'opex'`);
+    const [pl] = await this.db.select({ planned: sql<number>`coalesce(sum(${s.budgetMonths.planned}),0)` }).from(s.budgetMonths).innerJoin(s.budgetLines, eq(s.budgetLines.id, s.budgetMonths.lineId)).where(sql`${s.budgetLines.fiscalYear} = 2026 and ${s.budgetLines.kind} = 'opex' and ${s.budgetMonths.month} <= 8`);
+    const budget = { opexApproved: Math.round(Number(bl.approved)), opexActual: Math.round(Number(bl.actual)), opexSpendPct: Number(bl.approved) ? Math.round((Number(bl.actual) / Number(bl.approved)) * 1000) / 10 : 0, expectedPct: Number(bl.approved) ? Math.round((Number(pl.planned) / Number(bl.approved)) * 1000) / 10 : 0 };
+
     return {
-      capability,
+      capability, budget,
       kpis: {
         investment: t.investment, impact: t.impact, portfolios: Number(t.portfolios), projects: Number(t.projects), kpiCount: Number(t.kpis),
         kpisAtRisk: Number(t.kpisOffTrack), pendingDecisions: Number(t.pendingDecisions), forecastImpact: t.forecastImpact, targetImpact: 90,

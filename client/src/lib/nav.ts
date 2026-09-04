@@ -1,6 +1,6 @@
 import {
   Gauge, Target, Gavel, GitBranch, LineChart, LayoutGrid, Briefcase, Layers, ListChecks, Map, Building2,
-  Wallet, Users, AlertTriangle, Link2, Scale, BarChart3, GraduationCap, Database, Activity, Network, type LucideIcon,
+  Wallet, Users, AlertTriangle, Link2, Scale, BarChart3, GraduationCap, Database, Activity, Network, Landmark, type LucideIcon,
 } from "lucide-react";
 
 export type NavItem = { path: string; labelAr: string; labelEn: string; icon: LucideIcon; sprint?: number };
@@ -36,6 +36,9 @@ export const NAV: NavGroup[] = [
   { labelAr: "الحوكمة والتحليلات", items: [
     { path: "/governance", labelAr: "الحوكمة والتصعيدات", labelEn: "Governance", icon: Scale },
     { path: "/analytics", labelAr: "تحليل المحافظ والأولويات", labelEn: "Portfolio Analytics", icon: BarChart3 },
+  ]},
+  { labelAr: "الميزانية", items: [
+    { path: "/budget", labelAr: "الميزانية التشغيلية والمبادرات", labelEn: "Budgets", icon: Landmark },
   ]},
   { labelAr: "تطوير وبناء القدرات", items: [
     { path: "/learning", labelAr: "لوحة التطوير التنفيذية", labelEn: "Capability Development", icon: GraduationCap },

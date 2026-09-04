@@ -8,15 +8,16 @@ import { db, pool } from "../db";
 import * as s from "../../shared/schema";
 import { generateWorld, GOALS, SECTORS, REGIONS, PORTFOLIOS, KPIS } from "./generator";
 import { generateLearning, PROVIDERS } from "./learning";
+import { generateBudget, WORKFLOW_DEFINITIONS, CLOSED_MONTH } from "./budget";
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@2026";
 
-const DEMO_USERS: { username: string; fullName: string; role: s.Role }[] = [
+const DEMO_USERS: { username: string; fullName: string; role: s.Role; modules?: string[] }[] = [
   { username: "ceo", fullName: "الرئيس التنفيذي", role: "ceo" },
   { username: "epmo", fullName: "مدير المكتب التنفيذي للمشاريع", role: "epmo" },
   { username: "portfolio", fullName: "م. فهد القحطاني — مدير محفظة", role: "portfolio_manager" },
   { username: "project", fullName: "م. ماجد السبيعي — مدير مشروع", role: "project_manager" },
-  { username: "data", fullName: "مدير البيانات", role: "data_manager" },
+  { username: "data", fullName: "مدير البيانات", role: "data_manager", modules: ["core", "budget"] },
   { username: "admin", fullName: "مدير النظام", role: "system_admin" },
 ];
 
@@ -25,6 +26,7 @@ async function main() {
   const w = generateWorld();
 
   await db.execute(sql`TRUNCATE TABLE
+    workflow_history, workflow_instances, workflow_definitions, budget_transfers, budget_months, budget_lines, initiative_budget_years, cost_centers,
     succession_plans, skills, learning_enrollments, learning_programs, learning_providers,
     change_requests, change_log, resource_assignments, resources, change_requests_gov, escalations, decisions,
     dependencies, issues, risks, deliverables, milestones, financials, portfolio_goals, project_kpis, project_regions,
@@ -32,7 +34,7 @@ async function main() {
     RESTART IDENTITY CASCADE`);
 
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
-  await db.insert(s.users).values(DEMO_USERS.map((u) => ({ ...u, passwordHash: hash })));
+  await db.insert(s.users).values(DEMO_USERS.map((u) => ({ username: u.username, fullName: u.fullName, role: u.role, passwordHash: hash, modules: u.modules ?? (u.role === "data_manager" ? ["core"] : ["core", "budget", "org", "talent", "innovation"]) })));
 
   const goalRows = await db.insert(s.goals).values(GOALS).returning();
   const goalId = Object.fromEntries(goalRows.map((g) => [g.code, g.id]));
@@ -95,6 +97,29 @@ async function main() {
   await db.insert(s.skills).values(L.skills);
   await db.insert(s.successionPlans).values(L.succession);
   console.log(`✓ وحدة التطوير: ${L.programs.length} برنامجاً · ${L.enrollments.length} تسجيلاً · ${L.skills.length} مهارة · ${L.succession.length} خطة إحلال`);
+
+  // workflow engine definitions + budgets
+  const defRows = await db.insert(s.workflowDefinitions).values(WORKFLOW_DEFINITIONS).returning();
+  const B = generateBudget(sectorRows, prjRows.map((p, i) => ({ id: p.id, code: p.code, budget: w.projects[i].budget, committed: w.projects[i].committed, actual: w.projects[i].actual, status: p.status })));
+  const ccRows = await db.insert(s.costCenters).values(B.costCenters).returning();
+  const ccId = Object.fromEntries(ccRows.map((c) => [c.code, c.id]));
+  const lineRows = await db.insert(s.budgetLines).values(B.lines.map((l: any) => ({ fiscalYear: l.fiscalYear, kind: l.kind, costCenterId: l.ccCode ? ccId[l.ccCode] : null, projectId: l.projectId, chapter: l.chapter, category: l.category, approved: l.approved, committed: l.committed, actual: l.actual }))).returning();
+  await db.insert(s.budgetMonths).values(B.lines.flatMap((l: any, i: number) => l._plan.map((planned: number, m: number) => ({ lineId: lineRows[i].id, month: m + 1, planned, actual: l._actuals ? l._actuals[m] : (m < CLOSED_MONTH ? Math.round(l.actual / CLOSED_MONTH * 10) / 10 : null) }))));
+  await db.insert(s.initiativeBudgetYears).values(B.initiativeYears);
+  const findLine = (cc: string, cat: string) => lineRows.find((l, i) => B.lines[i].ccCode === cc && B.lines[i].category === cat)!;
+  const dataUser = (await db.select().from(s.users).where(sql`username = 'data'`))[0];
+  const def = defRows.find((d) => d.key === "budget_transfer")!;
+  for (const t of B.transfers) {
+    const [tr] = await db.insert(s.budgetTransfers).values({ code: t.code, fromLineId: findLine(t.from[0], t.from[1]).id, toLineId: findLine(t.to[0], t.to[1]).id, amount: t.amount, justificationAr: t.justificationAr, requestedByUserId: dataUser.id, status: t.status }).returning();
+    const stageKey = def.stages[t.stageIndex].key; const entered = new Date(Date.now() - 86400000 * (t.stageIndex === 2 ? 6 : 2));
+    const [inst] = await db.insert(s.workflowInstances).values({ definitionId: def.id, entity: "budget_transfers", entityId: tr.id, currentStage: stageKey, stageEnteredAt: entered, status: (t as any).completed ? "completed" : (t as any).rejected ? "rejected" : "active", completedAt: (t as any).completed || (t as any).rejected ? new Date() : null }).returning();
+    const hist = [{ instanceId: inst.id, fromStage: null as string | null, toStage: def.stages[0].key, action: "start", noteAr: null as string | null, userId: dataUser.id }];
+    for (let i = 0; i < t.stageIndex; i++) hist.push({ instanceId: inst.id, fromStage: def.stages[i].key, toStage: def.stages[i + 1].key, action: "approve", noteAr: null, userId: dataUser.id });
+    if ((t as any).completed) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "approve", noteAr: "تم التنفيذ", userId: dataUser.id });
+    if ((t as any).rejected) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: "لا يوجد وفر كافٍ في بند الرواتب", userId: dataUser.id });
+    await db.insert(s.workflowHistory).values(hist);
+  }
+  console.log(`✓ الميزانية ومسارات العمل: ${ccRows.length} مراكز تكلفة · ${lineRows.length} بنداً · ${B.transfers.length} مناقلات · ${defRows.length} مسارات عمل`);
 
   await db.insert(s.dataSources).values(w.dataSources);
   await db.insert(s.syncJobs).values(w.syncJobs);

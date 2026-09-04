@@ -13,14 +13,18 @@ export const ROLE_LABELS: Record<Role, { ar: string; en: string; scopeAr: string
   system_admin:      { ar: "مدير النظام",                  en: "System Admin",       scopeAr: "صلاحية كاملة" },
 };
 
+export const MODULES = ["core", "budget", "org", "talent", "innovation"] as const;
+export type Module = (typeof MODULES)[number];
+export const MODULE_LABELS: Record<Module, string> = { core: "بيانات المنصة الأساسية", budget: "الميزانية", org: "الهياكل التنظيمية", talent: "الاستقطاب", innovation: "الابتكار" };
+
 export type Permission =
   | "view:executive" | "view:strategy" | "view:portfolio" | "view:geo" | "view:performance"
-  | "view:governance" | "view:data" | "view:system" | "view:learning"
+  | "view:governance" | "view:data" | "view:system" | "view:learning" | "view:budget"
   | "data:edit" | "data:approve" | "data:override" | "data:import" | "decisions:decide" | "users:manage";
 
 const ALL_VIEWS: Permission[] = [
   "view:executive", "view:strategy", "view:portfolio", "view:geo", "view:performance",
-  "view:governance", "view:data", "view:system", "view:learning",
+  "view:governance", "view:data", "view:system", "view:learning", "view:budget",
 ];
 
 export const PERMISSIONS: Record<Role, Permission[]> = {
@@ -35,4 +39,10 @@ export const PERMISSIONS: Record<Role, Permission[]> = {
 export function can(role: Role | undefined, permission: Permission): boolean {
   if (!role) return false;
   return PERMISSIONS[role]?.includes(permission) ?? false;
+}
+
+/** Data managers edit only the modules assigned to them; every other role with data:edit is unscoped. */
+export function inScope(role: Role | undefined, modules: string[] | undefined, module: Module): boolean {
+  if (role !== "data_manager") return true;
+  return (modules ?? []).includes(module);
 }

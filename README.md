@@ -5,7 +5,9 @@
 > Sprints 1–7 complete: all 36 screens — executive layer, strategy & KPIs, portfolio layer with Gantt, regions map (MapLibre,
 > bundled GeoJSON), sectors, finance, resources, risks, dependencies, governance, prioritisation analytics, the data
 > administration console (ownership · approvals · audit · revert · relations · archive · CSV · users), data quality & integration,
-> architecture, and the capability-development module (11 screens incl. the English CEFR dashboard and the readiness index).
+> architecture, the capability-development module (11 screens incl. the English CEFR dashboard and the readiness index),
+> and — Sprint 8 — the **dynamic workflow engine** (stages/owners/SLAs edited in the console) with the **budget module**
+> (operating & initiatives budgets, spending-rate vs plan, S-curves, transfers through the workflow, CEO decision inbox).
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.

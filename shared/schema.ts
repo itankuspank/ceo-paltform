@@ -9,7 +9,7 @@
 import {
   pgTable, serial, text, integer, real, boolean, timestamp, date, primaryKey, index, varchar, json,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const ROLES = ["ceo", "epmo", "portfolio_manager", "project_manager", "data_manager", "system_admin"] as const;
 export type Role = (typeof ROLES)[number];
@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role").$type<Role>().notNull(),
+  modules: text("modules").array().notNull().default(sql`'{core}'::text[]`), // data-manager scope: core | budget | org | talent | innovation
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -445,3 +446,96 @@ export function skillReadiness(s: { required: number; covered: number; gapClosur
   const coverage = s.required ? Math.min(100, (s.covered / s.required) * 100) : 100;
   return Math.round((coverage * 0.6 + s.gapClosure * 0.4) * 10) / 10;
 }
+
+// ================================================================ dynamic workflow engine (shared by budgets, org structures, talent, innovation)
+export const WORKFLOW_ACTIONS = ["approve", "reject", "return"] as const;
+export type WorkflowAction = (typeof WORKFLOW_ACTIONS)[number];
+export type WorkflowStage = { key: string; nameAr: string; ownerRole: Role; slaDays: number; requiresDecision?: boolean; decisionRole?: Role };
+
+export const workflowDefinitions = pgTable("workflow_definitions", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),              // budget_transfer | org_request | recruit_contractor | …
+  nameAr: text("name_ar").notNull(),
+  entity: text("entity").notNull(),                 // table the workflow governs
+  stages: json("stages").$type<WorkflowStage[]>().notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  version: integer("version").notNull().default(1),
+});
+
+export const workflowInstances = pgTable("workflow_instances", {
+  id: serial("id").primaryKey(),
+  definitionId: integer("definition_id").notNull().references(() => workflowDefinitions.id),
+  entity: text("entity").notNull(),
+  entityId: integer("entity_id").notNull(),
+  currentStage: text("current_stage").notNull(),
+  stageEnteredAt: timestamp("stage_entered_at").notNull().defaultNow(),
+  status: text("status").notNull().default("active"), // active | completed | rejected
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (t) => [index("wf_inst_entity_idx").on(t.entity, t.entityId), index("wf_inst_stage_idx").on(t.currentStage, t.status)]);
+
+export const workflowHistory = pgTable("workflow_history", {
+  id: serial("id").primaryKey(),
+  instanceId: integer("instance_id").notNull().references(() => workflowInstances.id),
+  fromStage: text("from_stage"),
+  toStage: text("to_stage"),
+  action: text("action").notNull(),                 // start | approve | reject | return
+  noteAr: text("note_ar"),
+  userId: integer("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("wf_hist_inst_idx").on(t.instanceId)]);
+
+// ================================================================ budgets — الميزانية التشغيلية وميزانية المبادرات
+export const BUDGET_CHAPTERS = ["الباب الأول — تعويضات العاملين", "الباب الثاني — السلع والخدمات", "الباب الثالث — النفقات الأخرى", "الباب الرابع — الأصول غير المالية"] as const;
+
+export const costCenters = pgTable("cost_centers", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  nameAr: text("name_ar").notNull(),
+  type: text("type").notNull(),                     // قطاع | إدارة | برنامج
+  sectorId: integer("sector_id").references(() => sectors.id),
+});
+
+export const budgetLines = pgTable("budget_lines", {
+  id: serial("id").primaryKey(),
+  fiscalYear: integer("fiscal_year").notNull(),
+  kind: text("kind").notNull(),                     // opex | initiative
+  costCenterId: integer("cost_center_id").references(() => costCenters.id),
+  projectId: integer("project_id").references(() => projects.id),
+  chapter: text("chapter").notNull(),
+  category: text("category").notNull(),
+  approved: real("approved").notNull(),             // SAR millions
+  committed: real("committed").notNull().default(0),
+  actual: real("actual").notNull().default(0),
+}, (t) => [index("budget_lines_fy_idx").on(t.fiscalYear, t.kind)]);
+
+export const budgetMonths = pgTable("budget_months", {
+  id: serial("id").primaryKey(),
+  lineId: integer("line_id").notNull().references(() => budgetLines.id),
+  month: integer("month").notNull(),                // 1-12
+  planned: real("planned").notNull(),
+  actual: real("actual"),                           // null = not yet closed
+}, (t) => [index("budget_months_line_idx").on(t.lineId)]);
+
+export const budgetTransfers = pgTable("budget_transfers", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),            // TRF-001
+  fromLineId: integer("from_line_id").notNull().references(() => budgetLines.id),
+  toLineId: integer("to_line_id").notNull().references(() => budgetLines.id),
+  amount: real("amount").notNull(),                 // SAR millions
+  justificationAr: text("justification_ar").notNull(),
+  requestedByUserId: integer("requested_by_user_id").references(() => users.id),
+  status: text("status").notNull().default("قيد الإجراء"), // قيد الإجراء | معتمد | مرفوض
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const initiativeBudgetYears = pgTable("initiative_budget_years", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id),
+  fiscalYear: integer("fiscal_year").notNull(),
+  requested: real("requested").notNull(),
+  approved: real("approved"),                       // null = planning cycle not closed
+  committed: real("committed").notNull().default(0),
+  actual: real("actual").notNull().default(0),
+  fundingSource: text("funding_source").notNull().default("الميزانية العامة"),
+}, (t) => [index("iby_project_idx").on(t.projectId, t.fiscalYear)]);

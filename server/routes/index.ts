@@ -10,6 +10,9 @@ import { GeoRepository } from "../repositories/geo";
 import { PerformanceRepository } from "../repositories/performance";
 import { dataRouter, systemHandler } from "./data";
 import { LearningRepository } from "../repositories/learning";
+import { WorkflowEngine, WorkflowError } from "../workflow";
+import { BudgetRepository } from "../repositories/budget";
+import { inScope, type Module } from "../../shared/rbac";
 
 export const apiRouter: Router = express.Router();
 export const publicRouter: Router = express.Router();
@@ -20,6 +23,35 @@ const geoRepo = new GeoRepository(db);
 const perfRepo = new PerformanceRepository(db);
 apiRouter.use("/data", dataRouter);
 const learningRepo = new LearningRepository(db);
+const wf = new WorkflowEngine(db);
+const budgetRepo = new BudgetRepository(db, wf);
+const actorOf = (req: express.Request) => ({ userId: req.session.userId!, role: req.session.role! });
+const W = (fn: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try { res.json(await fn(req)); } catch (e: any) { if (e instanceof WorkflowError || e?.status) return res.status(e.status ?? 500).json({ error: e.message }); next(e); }
+};
+const scoped = (module: Module) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (!inScope(req.session.role, req.session.modules, module)) return res.status(403).json({ error: "هذا النطاق خارج صلاحياتك المسندة" });
+  next();
+};
+
+// ---------------------------------------------------------------- workflow engine
+apiRouter.get("/workflow/definitions", requirePermission("view:data"), W(() => wf.definitions()));
+apiRouter.put("/workflow/definitions/:key", requirePermission("users:manage"), W((req) => wf.updateDefinition(req.params.key as string, req.body ?? {}, actorOf(req))));
+apiRouter.get("/workflow/inbox", requirePermission("view:executive"), W((req) => wf.inbox(req.session.role!)));
+apiRouter.get("/workflow/pipeline/:key", requirePermission("view:executive"), W((req) => wf.pipeline(req.params.key as string)));
+apiRouter.get("/workflow/status/:entity/:id", requirePermission("view:executive"), W((req) => wf.status(req.params.entity as string, Number(req.params.id))));
+apiRouter.post("/workflow/:instanceId/act", requirePermission("view:executive"), W(async (req) => {
+  const r = await wf.act(Number(req.params.instanceId), req.body?.action, actorOf(req), typeof req.body?.noteAr === "string" ? req.body.noteAr : undefined);
+  if (r.instance.entity === "budget_transfers" && r.outcome !== "active") await budgetRepo.applyTransferOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
+  return r;
+}));
+
+// ---------------------------------------------------------------- budgets
+apiRouter.get("/budget/overview", requirePermission("view:budget"), W(() => budgetRepo.overview()));
+apiRouter.get("/budget/opex", requirePermission("view:budget"), W(() => budgetRepo.opex()));
+apiRouter.get("/budget/initiatives", requirePermission("view:budget"), W(() => budgetRepo.initiatives()));
+apiRouter.get("/budget/transfers", requirePermission("view:budget"), W(() => budgetRepo.transfers()));
+apiRouter.post("/budget/transfers", requirePermission("data:edit"), scoped("budget"), W((req) => budgetRepo.createTransfer({ fromLineId: Number(req.body?.fromLineId), toLineId: Number(req.body?.toLineId), amount: Number(req.body?.amount), justificationAr: String(req.body?.justificationAr ?? "") }, actorOf(req))));
 const L = (fn: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response, next: express.NextFunction) => { try { res.json(await fn(req)); } catch (e) { next(e); } };
 apiRouter.get("/learning/dashboard", requirePermission("view:learning"), L(() => learningRepo.dashboard()));
 apiRouter.get("/learning/english", requirePermission("view:learning"), L(() => learningRepo.english()));
@@ -126,8 +158,17 @@ apiRouter.get("/reference/sectors", requirePermission("view:geo"), async (_req, 
 apiRouter.get("/reference/regions", requirePermission("view:geo"), async (_req, res, next) => {
   try { res.json(await db.select().from(s.regions).orderBy(asc(s.regions.id))); } catch (e) { next(e); }
 });
-apiRouter.get("/decisions", requirePermission("view:executive"), async (_req, res, next) => {
-  try { res.json(await strategyRepo.decisions()); } catch (e) { next(e); }
+apiRouter.get("/decisions", requirePermission("view:executive"), async (req, res, next) => {
+  try {
+    const d = await strategyRepo.decisions();
+    const inbox = await wf.inbox(req.session.role!);
+    const items = [] as any[];
+    for (const it of inbox) {
+      if (it.entity === "budget_transfers") { const t = (await budgetRepo.transfers()).find((x) => x.id === it.entityId); if (t) items.push({ ...it, titleAr: `مناقلة ${t.code}: ${t.from?.cc} — ${t.from?.category} ← ${t.to?.category}`, amount: t.amount, detailAr: t.justificationAr, link: "/budget/opex" }); }
+      else items.push({ ...it, titleAr: `${it.definitionName} #${it.entityId}`, amount: null, detailAr: null, link: null });
+    }
+    res.json({ ...d, workflowItems: items });
+  } catch (e) { next(e); }
 });
 /** CEO decision workflow — status change is audited in change_log (FR-E-05, FR-D-04). */
 apiRouter.post("/decisions/:id/decide", requirePermission("decisions:decide"), async (req, res, next) => {

@@ -7,7 +7,7 @@ import { users, type Role, ROLES, type SafeUser } from "../shared/schema";
 import { can, type Permission } from "../shared/rbac";
 
 declare module "express-session" {
-  interface SessionData { userId?: number; role?: Role; }
+  interface SessionData { userId?: number; role?: Role; modules?: string[]; }
 }
 
 function safe(u: typeof users.$inferSelect): SafeUser {
@@ -42,6 +42,7 @@ authRouter.post("/login", async (req, res) => {
     if (err) return res.status(500).json({ error: "تعذر إنشاء الجلسة" });
     req.session.userId = u.id;
     req.session.role = u.role;
+    req.session.modules = u.modules;
     res.json({ user: safe(u) });
   });
 });
@@ -70,5 +71,6 @@ authRouter.post("/switch-role", requireAuth, async (req, res) => {
   if (!u) return res.status(404).json({ error: "لا يوجد حساب تجريبي لهذا الدور" });
   req.session.userId = u.id;
   req.session.role = u.role;
+  req.session.modules = u.modules;
   res.json({ user: safe(u) });
 });

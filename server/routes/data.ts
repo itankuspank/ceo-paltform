@@ -6,7 +6,7 @@ import { DataRepository, HttpError } from "../repositories/data";
 
 export const dataRouter: Router = express.Router();
 const repo = new DataRepository(db);
-const actor = (req: Request) => ({ userId: req.session.userId!, can: (p: Permission) => can(req.session.role, p) });
+const actor = (req: Request) => ({ userId: req.session.userId!, role: req.session.role, modules: req.session.modules, can: (p: Permission) => can(req.session.role, p) });
 const wrap = (fn: (req: Request, res: express.Response) => Promise<unknown>) => async (req: Request, res: express.Response, next: express.NextFunction) => {
   try { const out = await fn(req, res); if (out !== undefined) res.json(out); } catch (e) { if (e instanceof HttpError) return res.status(e.status).json({ error: e.message }); next(e); }
 };
@@ -23,7 +23,7 @@ dataRouter.get("/relations/:projectId", requirePermission("view:data"), wrap(asy
 dataRouter.put("/relations/:projectId", requirePermission("view:data"), wrap(async (req) => repo.saveRelations(Number(req.params.projectId), (req.body?.regionIds ?? []).map(Number), (req.body?.kpiIds ?? []).map(Number), actor(req))));
 dataRouter.get("/quality", requirePermission("view:data"), wrap(async () => repo.quality()));
 dataRouter.get("/users", requirePermission("users:manage"), wrap(async () => repo.users()));
-dataRouter.patch("/users/:id", requirePermission("users:manage"), wrap(async (req) => repo.setUserActive(Number(req.params.id), !!req.body?.isActive, actor(req))));
+dataRouter.patch("/users/:id", requirePermission("users:manage"), wrap(async (req) => repo.updateUser(Number(req.params.id), { isActive: typeof req.body?.isActive === "boolean" ? req.body.isActive : undefined, modules: Array.isArray(req.body?.modules) ? req.body.modules : undefined }, actor(req))));
 
 dataRouter.get("/:entity/options", requirePermission("view:data"), wrap(async (req) => repo.fkOptions(req.params.entity as string)));
 dataRouter.get("/:entity/export.csv", requirePermission("view:data"), wrap(async (req, res) => {

@@ -8,7 +8,7 @@ import { FIELD_SOURCES, SENSITIVE_FIELDS, type FieldSource } from "../../shared/
 
 export type ColType = "text" | "number" | "date" | "boolean" | "select" | "fk";
 export type Column = { key: string; labelAr: string; type: ColType; options?: readonly string[]; fk?: string; required?: boolean; readOnly?: boolean; width?: number };
-export type Entity = { key: string; table: any; tableName: string; labelAr: string; labelEn: string; group: string; sourceAr: string; labelField: string; columns: Column[]; archivable?: boolean };
+export type Entity = { key: string; table: any; tableName: string; labelAr: string; labelEn: string; group: string; sourceAr: string; labelField: string; columns: Column[]; archivable?: boolean; module?: "core" | "budget" | "org" | "talent" | "innovation" };
 
 const RAG = s.RAG;
 const col = (key: string, labelAr: string, type: ColType, extra: Partial<Column> = {}): Column => ({ key, labelAr, type, ...extra });
@@ -57,6 +57,17 @@ export const ENTITIES: Entity[] = [
     col("code", "الرمز", "text", { required: true }), col("titleAr", "القرار", "text", { required: true }), col("type", "النوع", "select", { options: s.DECISION_TYPES }), col("priority", "الأولوية", "select", { options: ["عاجلة", "مرتفعة", "متوسطة"] }),
     col("amount", "المبلغ (مليون)", "number"), col("ownerAr", "الجهة المالكة", "text", { required: true }), col("projectId", "المبادرة", "fk", { fk: "projects" }), col("dueDate", "الموعد", "date", { required: true }),
     col("status", "الحالة", "select", { options: ["معلق", "معتمد", "مرفوض", "مؤجل"] }), col("impactNoteAr", "الأثر المتوقع", "text") ] },
+  // ---- budget module
+  { key: "costCenters", table: s.costCenters, tableName: "cost_centers", labelAr: "مراكز التكلفة", labelEn: "Cost Centers", group: "الميزانية", sourceAr: "إدخال يدوي", labelField: "nameAr", module: "budget", columns: [
+    col("code", "الرمز", "text", { required: true }), col("nameAr", "مركز التكلفة", "text", { required: true }), col("type", "النوع", "select", { options: ["قطاع", "إدارة", "برنامج"] }), col("sectorId", "القطاع", "fk", { fk: "sectors" }) ] },
+  { key: "budgetLines", table: s.budgetLines, tableName: "budget_lines", labelAr: "بنود الميزانية", labelEn: "Budget Lines", group: "الميزانية", sourceAr: "وزارة المالية / Odoo ERP", labelField: "category", module: "budget", columns: [
+    col("fiscalYear", "السنة المالية", "number", { required: true }), col("kind", "النوع", "select", { options: ["opex", "initiative"], required: true }), col("costCenterId", "مركز التكلفة", "fk", { fk: "costCenters" }), col("projectId", "المبادرة", "fk", { fk: "projects" }),
+    col("chapter", "الباب", "select", { options: s.BUDGET_CHAPTERS, required: true }), col("category", "البند", "text", { required: true }), col("approved", "المعتمد (مليون)", "number", { required: true }), col("committed", "الملتزم به (مليون)", "number"), col("actual", "المنصرف (مليون)", "number") ] },
+  { key: "initiativeBudgetYears", table: s.initiativeBudgetYears, tableName: "initiative_budget_years", labelAr: "ميزانية المبادرات حسب السنة", labelEn: "Initiative Budget Years", group: "الميزانية", sourceAr: "وزارة المالية / Odoo ERP", labelField: "fiscalYear", module: "budget", columns: [
+    col("projectId", "المبادرة", "fk", { fk: "projects", required: true }), col("fiscalYear", "السنة المالية", "number", { required: true }), col("requested", "المطلوب (مليون)", "number", { required: true }), col("approved", "المعتمد (مليون)", "number"), col("committed", "الملتزم به", "number"), col("actual", "المنصرف", "number"),
+    col("fundingSource", "مصدر التمويل", "select", { options: ["الميزانية العامة", "تمويل البرامج والمبادرات", "تمويل ذاتي"] }) ] },
+  { key: "budgetTransfers", table: s.budgetTransfers, tableName: "budget_transfers", labelAr: "المناقلات", labelEn: "Budget Transfers", group: "الميزانية", sourceAr: "مسار عمل داخل المنصة", labelField: "code", module: "budget", columns: [
+    col("code", "الرمز", "text", { readOnly: true }), col("fromLineId", "من البند", "fk", { fk: "budgetLines", readOnly: true }), col("toLineId", "إلى البند", "fk", { fk: "budgetLines", readOnly: true }), col("amount", "المبلغ (مليون)", "number", { readOnly: true }), col("justificationAr", "المبرر", "text"), col("status", "الحالة", "select", { options: ["قيد الإجراء", "معتمد", "مرفوض"], readOnly: true }) ] },
 ];
 
 export const ENTITY_MAP = Object.fromEntries(ENTITIES.map((e) => [e.key, e]));

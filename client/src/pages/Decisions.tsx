@@ -6,12 +6,15 @@ import { useAuth } from "@/lib/auth";
 import { KpiCard, Panel, Chip, PageHeader, SourcesFooter, Loading, ErrorBox, Empty } from "@/components/ui";
 import { fmtMoney } from "@shared/format";
 import { DECISION_TYPES } from "@shared/schema";
+import { Link } from "react-router-dom";
+import { WorkflowActions } from "@/components/workflow";
 
 type Decision = {
   id: number; code: string; titleAr: string; type: string; priority: string; amount: number | null; ownerAr: string; dueDate: string; status: string;
   impactNoteAr: string | null; decidedAt: string | null; projectName: string | null; portfolioName: string | null;
 };
-type Payload = { summary: { total: number; financial: number; financialAmount: number; scope: number; other: number }; decisions: Decision[] };
+type WfItem = { id: number; entity: string; entityId: number; definitionName: string; stage: any; stages?: any[]; daysInStage: number; slaBreached: boolean; titleAr: string; amount: number | null; detailAr: string | null; link: string | null; status: string; stageIndex?: number };
+type Payload = { summary: { total: number; financial: number; financialAmount: number; scope: number; other: number }; decisions: Decision[]; workflowItems: WfItem[] };
 
 const STATUS_TONE: Record<string, "on_track" | "off_track" | "gold" | "at_risk"> = { "معتمد": "on_track", "مرفوض": "off_track", "مؤجل": "gold", "معلق": "at_risk" };
 
@@ -41,6 +44,18 @@ export default function DecisionsPage() {
         <KpiCard label="قرارات نطاق" value={sm.scope} sub="تغيير في نطاق المبادرات" />
         <KpiCard label="تصعيد / موارد / مخاطرة" value={sm.other} tone="red" sub="قرارات غير مالية" />
       </div>
+
+      {data.workflowItems.length > 0 && (
+        <Panel className="mt-4" accent="gold" title={`قرارات من مسارات العمل (${data.workflowItems.length})`} subtitle="مناقلات الميزانية وطلبات الهياكل والاستقطاب والأفكار التي بلغت مرحلة قرار الرئيس التنفيذي">
+          <div className="space-y-2">{data.workflowItems.map((w) => (
+            <div key={w.id} className="rounded-lg border border-brand-border px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2 flex-wrap"><div className="text-[12.5px] font-semibold">{w.titleAr}</div><div className="flex items-center gap-2"><Chip tone={w.slaBreached ? "off_track" : "at_risk"}>{w.definitionName} · {w.daysInStage}/{w.stage.slaDays} يوم</Chip>{w.amount !== null && <span className="text-[13px] font-bold num">{fmtMoney(w.amount)}</span>}</div></div>
+              {w.detailAr && <div className="text-[11px] text-brand-muted mt-0.5">{w.detailAr}</div>}
+              <div className="mt-2 flex items-center justify-between gap-3 flex-wrap"><WorkflowActions wf={{ instanceId: w.id, stage: w.stage, stageIndex: w.stageIndex ?? 0, stages: w.stages ?? [w.stage], status: w.status, daysInStage: w.daysInStage, slaBreached: w.slaBreached }} invalidate={[["decisions"], ["budget-overview"], ["budget-opex"], ["overview"]]} size="md" />{w.link && <Link to={w.link} className="text-[11px] font-semibold text-brand-green">فتح التفاصيل</Link>}</div>
+            </div>
+          ))}</div>
+        </Panel>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
         {["all", ...DECISION_TYPES].map((t) => (
