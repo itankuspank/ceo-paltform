@@ -19,12 +19,12 @@ export const MODULE_LABELS: Record<Module, string> = { core: "بيانات ال�
 
 export type Permission =
   | "view:executive" | "view:strategy" | "view:portfolio" | "view:geo" | "view:performance"
-  | "view:governance" | "view:data" | "view:system" | "view:learning" | "view:budget"
+  | "view:governance" | "view:data" | "view:system" | "view:learning" | "view:budget" | "view:org" | "view:talent"
   | "data:edit" | "data:approve" | "data:override" | "data:import" | "decisions:decide" | "users:manage";
 
 const ALL_VIEWS: Permission[] = [
   "view:executive", "view:strategy", "view:portfolio", "view:geo", "view:performance",
-  "view:governance", "view:data", "view:system", "view:learning", "view:budget",
+  "view:governance", "view:data", "view:system", "view:learning", "view:budget", "view:org", "view:talent",
 ];
 
 export const PERMISSIONS: Record<Role, Permission[]> = {
@@ -45,4 +45,12 @@ export function can(role: Role | undefined, permission: Permission): boolean {
 export function inScope(role: Role | undefined, modules: string[] | undefined, module: Module): boolean {
   if (role !== "data_manager") return true;
   return (modules ?? []).includes(module);
+}
+
+/** Candidate-name visibility (privacy rule agreed for the pilot): talent-scoped data managers and admins see all names; the CEO sees names on senior roles only. */
+export function canSeeCandidateName(role: Role | undefined, modules: string[] | undefined, isSenior: boolean): boolean {
+  if (role === "system_admin") return true;
+  if (role === "data_manager") return (modules ?? []).includes("talent");
+  if (role === "ceo") return isSenior;
+  return false;
 }

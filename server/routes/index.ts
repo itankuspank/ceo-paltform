@@ -12,6 +12,8 @@ import { dataRouter, systemHandler } from "./data";
 import { LearningRepository } from "../repositories/learning";
 import { WorkflowEngine, WorkflowError } from "../workflow";
 import { BudgetRepository } from "../repositories/budget";
+import { OrgRepository } from "../repositories/org";
+import { TalentRepository } from "../repositories/talent";
 import { inScope, type Module } from "../../shared/rbac";
 
 export const apiRouter: Router = express.Router();
@@ -25,6 +27,9 @@ apiRouter.use("/data", dataRouter);
 const learningRepo = new LearningRepository(db);
 const wf = new WorkflowEngine(db);
 const budgetRepo = new BudgetRepository(db, wf);
+const orgRepo = new OrgRepository(db, wf);
+const talentRepo = new TalentRepository(db, wf);
+const actorFull = (req: express.Request) => ({ userId: req.session.userId!, role: req.session.role!, modules: req.session.modules });
 const actorOf = (req: express.Request) => ({ userId: req.session.userId!, role: req.session.role! });
 const W = (fn: (req: express.Request) => Promise<unknown>) => async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   try { res.json(await fn(req)); } catch (e: any) { if (e instanceof WorkflowError || e?.status) return res.status(e.status ?? 500).json({ error: e.message }); next(e); }
@@ -41,10 +46,31 @@ apiRouter.get("/workflow/inbox", requirePermission("view:executive"), W((req) =>
 apiRouter.get("/workflow/pipeline/:key", requirePermission("view:executive"), W((req) => wf.pipeline(req.params.key as string)));
 apiRouter.get("/workflow/status/:entity/:id", requirePermission("view:executive"), W((req) => wf.status(req.params.entity as string, Number(req.params.id))));
 apiRouter.post("/workflow/:instanceId/act", requirePermission("view:executive"), W(async (req) => {
+  const cur = await wf.byInstance(Number(req.params.instanceId));
+  if (cur && cur.entity === "candidates" && req.body?.action === "approve" && cur.stageIndex === cur.stages.length - 1) await talentRepo.assertCanOnboard(cur.entityId);
   const r = await wf.act(Number(req.params.instanceId), req.body?.action, actorOf(req), typeof req.body?.noteAr === "string" ? req.body.noteAr : undefined);
   if (r.instance.entity === "budget_transfers" && r.outcome !== "active") await budgetRepo.applyTransferOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
+  if (r.instance.entity === "org_requests" && r.outcome !== "active") await orgRepo.applyOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
+  if (r.instance.entity === "candidates" && r.outcome !== "active") await talentRepo.applyOutcome(r.instance.entityId, r.outcome as "completed" | "rejected", actorOf(req));
   return r;
 }));
+
+// ---------------------------------------------------------------- talent acquisition
+apiRouter.get("/talent/dashboard", requirePermission("view:talent"), W((req) => talentRepo.dashboard(actorFull(req))));
+apiRouter.get("/talent/pipeline", requirePermission("view:talent"), W((req) => talentRepo.pipeline(actorFull(req))));
+apiRouter.get("/talent/requisitions", requirePermission("view:talent"), W(() => talentRepo.requisitions()));
+apiRouter.post("/talent/requisitions", requirePermission("data:edit"), scoped("talent"), W((req) => talentRepo.createRequisition(req.body ?? {}, actorFull(req))));
+apiRouter.post("/talent/candidates", requirePermission("data:edit"), scoped("talent"), W((req) => talentRepo.createCandidate(req.body ?? {}, actorFull(req))));
+apiRouter.put("/talent/candidates/:id/clearance", requirePermission("data:edit"), scoped("talent"), W((req) => talentRepo.setClearance(Number(req.params.id), String(req.body?.status ?? ""), actorFull(req))));
+
+// ---------------------------------------------------------------- organizational structures
+apiRouter.get("/org/center", requirePermission("view:org"), W(() => orgRepo.center()));
+apiRouter.get("/org/tree", requirePermission("view:org"), W(() => orgRepo.tree()));
+apiRouter.get("/org/units/:id", requirePermission("view:org"), W(async (req) => { const d = await orgRepo.unit(Number(req.params.id)); if (!d) throw Object.assign(new Error("الوحدة غير موجودة"), { status: 404 }); return d; }));
+apiRouter.get("/org/requests", requirePermission("view:org"), W(() => orgRepo.requests()));
+apiRouter.get("/org/requests/:id", requirePermission("view:org"), W(async (req) => { const d = await orgRepo.request(Number(req.params.id)); if (!d) throw Object.assign(new Error("الطلب غير موجود"), { status: 404 }); return d; }));
+apiRouter.post("/org/requests", requirePermission("data:edit"), scoped("org"), W((req) => orgRepo.createRequest(req.body ?? {}, actorOf(req))));
+apiRouter.put("/org/requests/:id/checklist", requirePermission("data:edit"), scoped("org"), W((req) => orgRepo.setChecklist(Number(req.params.id), Array.isArray(req.body?.checklist) ? req.body.checklist : [], actorOf(req))));
 
 // ---------------------------------------------------------------- budgets
 apiRouter.get("/budget/overview", requirePermission("view:budget"), W(() => budgetRepo.overview()));
@@ -165,6 +191,8 @@ apiRouter.get("/decisions", requirePermission("view:executive"), async (req, res
     const items = [] as any[];
     for (const it of inbox) {
       if (it.entity === "budget_transfers") { const t = (await budgetRepo.transfers()).find((x) => x.id === it.entityId); if (t) items.push({ ...it, titleAr: `مناقلة ${t.code}: ${t.from?.cc} — ${t.from?.category} ← ${t.to?.category}`, amount: t.amount, detailAr: t.justificationAr, link: "/budget/opex" }); }
+      else if (it.entity === "org_requests") { const r = await orgRepo.request(it.entityId); if (r) items.push({ ...it, titleAr: `${r.request.code}: ${r.request.titleAr}`, amount: null, detailAr: `${r.request.type} · ${r.request.requestingUnit} · أثر ${r.request.impactHeadcount >= 0 ? "+" : ""}${r.request.impactHeadcount} وظيفة · ${r.request.impactBudget} مليون/سنة · جهة القرار: ${r.request.decisionAuthority}`, link: `/org/requests/${r.request.id}` }); }
+      else if (it.entity === "candidates") { const c = (await talentRepo.pipeline(actorFull(req))).find((x) => x.id === it.entityId); if (c) items.push({ ...it, titleAr: `${it.definitionName}: ${c.roleAr} — ${c.nameAr}`, amount: null, detailAr: `${c.sectorName}${c.projectName ? ` · ${c.projectName}` : ""} · ${c.sourceAr ?? ""} · الفحص الأمني: ${c.clearanceStatus}${c.isSenior ? " · وظيفة قيادية" : ""}`, link: "/talent/pipeline" }); }
       else items.push({ ...it, titleAr: `${it.definitionName} #${it.entityId}`, amount: null, detailAr: null, link: null });
     }
     res.json({ ...d, workflowItems: items });

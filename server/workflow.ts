@@ -81,6 +81,11 @@ export class WorkflowEngine {
     return this.enrich(inst);
   }
 
+  async byInstance(instanceId: number) {
+    const [inst] = await this.db.select().from(s.workflowInstances).where(eq(s.workflowInstances.id, instanceId)).limit(1);
+    return inst ? this.enrich(inst) : null;
+  }
+
   async enrich(inst: typeof s.workflowInstances.$inferSelect) {
     const [d] = await this.db.select().from(s.workflowDefinitions).where(eq(s.workflowDefinitions.id, inst.definitionId)).limit(1);
     const idx = d!.stages.findIndex((x) => x.key === inst.currentStage); const stage = d!.stages[idx];

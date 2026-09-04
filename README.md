@@ -9,7 +9,9 @@
 > and — Sprint 8 — the **dynamic workflow engine** (stages/owners/SLAs edited in the console) with the **budget module**
 > (operating & initiatives budgets, spending-rate vs plan, S-curves, transfers through the workflow, CEO decision inbox),
 > and — Sprint 9 — **الهياكل التنظيمية**: the approved structure registry (5 levels), the explorer with search and unit profiles,
-> structure requests through the governance workflow with as-is/to-be, structural health indicators, and roadmap linkage.
+> structure requests through the governance workflow with as-is/to-be, structural health indicators, and roadmap linkage,
+> and — Sprint 10 — **مسار الاستقطاب**: demand vs supply, the three engagement routes (متعاقد · مكلّف · معار) on the engine,
+> Kanban pipeline with SLA aging, clearance gate, name privacy by role, and onboarding that creates the HR resource record.
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.

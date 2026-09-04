@@ -25,6 +25,8 @@ import DataAdminPage from "@/pages/DataAdmin";
 import { SystemPage, ArchitecturePage } from "@/pages/SystemArchitecture";
 import LearningRouter from "@/pages/Learning";
 import BudgetRouter from "@/pages/Budget";
+import OrgRouter from "@/pages/Org";
+import TalentRouter from "@/pages/Talent";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } } });
 
@@ -52,6 +54,8 @@ const BUILT: Record<string, React.ComponentType> = {
   "/architecture": ArchitecturePage,
   "/learning": LearningRouter,
   "/budget": BudgetRouter,
+  "/org": OrgRouter,
+  "/talent": TalentRouter,
 };
 
 function Protected({ children }: { children: React.ReactNode }) {

@@ -139,6 +139,7 @@ export const projects = pgTable("projects", {
   impactAchieved: real("impact_achieved").notNull(),
   impactContribution: text("impact_contribution").notNull().default("متوسطة"), // عالية/متوسطة/منخفضة
   priorityScore: real("priority_score").notNull().default(70),
+  tags: text("tags").array().notNull().default(sql`'{}'::text[]`),   // e.g. تنظيمي · ابتكار
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   isArchived: boolean("is_archived").notNull().default(false),
@@ -377,6 +378,7 @@ export type Risk = typeof risks.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Resource = typeof resources.$inferSelect;
 export type Dependency = typeof dependencies.$inferSelect;
+export type OrgUnitRow = typeof orgUnits.$inferSelect;
 
 // ================================================================ capability development module (FR-L-01 … FR-L-14)
 export const LEARNING_TRACKS = ["english", "postgraduate", "leadership", "short"] as const;
@@ -539,3 +541,99 @@ export const initiativeBudgetYears = pgTable("initiative_budget_years", {
   actual: real("actual").notNull().default(0),
   fundingSource: text("funding_source").notNull().default("الميزانية العامة"),
 }, (t) => [index("iby_project_idx").on(t.projectId, t.fiscalYear)]);
+
+// ================================================================ organizational structures — الهياكل التنظيمية
+export const ORG_LEVELS = ["وزارة", "قطاع", "وكالة / إدارة عامة", "إدارة", "قسم"] as const;
+export const ORG_REQUEST_TYPES = ["استحداث", "دمج", "إلغاء", "نقل تبعية", "تعديل مسمى", "تحديث دليل تنظيمي", "توصيف وظيفي"] as const;
+export const ORG_AUTHORITIES = ["الرئيس التنفيذي", "الوزير", "لجنة الهياكل"] as const;
+
+export const orgUnits = pgTable("org_units", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  nameAr: text("name_ar").notNull(),
+  level: text("level").notNull(),                   // one of ORG_LEVELS
+  parentId: integer("parent_id"),
+  headNameAr: text("head_name_ar"),
+  positions: integer("positions").notNull().default(0),
+  headcount: integer("headcount").notNull().default(0),
+  sectorId: integer("sector_id").references(() => sectors.id),
+  regionId: integer("region_id").references(() => regions.id),
+  functionsAr: text("functions_ar"),
+  status: text("status").notNull().default("معتمد"), // معتمد | مقترح | ملغى
+  effectiveFrom: date("effective_from"),
+  version: integer("version").notNull().default(1),
+}, (t) => [index("org_units_parent_idx").on(t.parentId)]);
+
+export const orgRequests = pgTable("org_requests", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),            // ORG-001
+  requestingUnitId: integer("requesting_unit_id").notNull().references(() => orgUnits.id),
+  type: text("type").notNull(),
+  titleAr: text("title_ar").notNull(),
+  descriptionAr: text("description_ar").notNull(),
+  justificationAr: text("justification_ar").notNull(),
+  impactHeadcount: integer("impact_headcount").notNull().default(0),
+  impactBudget: real("impact_budget").notNull().default(0), // SAR millions / year
+  duplicationNoteAr: text("duplication_note_ar"),
+  relatedProjectId: integer("related_project_id").references(() => projects.id),
+  decisionAuthority: text("decision_authority").notNull().default("الرئيس التنفيذي"),
+  priority: text("priority").notNull().default("متوسطة"), // عاجلة | مرتفعة | متوسطة
+  correspondenceRef: text("correspondence_ref"),
+  receivedAt: date("received_at").notNull(),
+  status: text("status").notNull().default("قيد الإجراء"), // قيد الإجراء | منفذ | مرفوض
+  checklist: json("checklist").$type<{ item: string; done: boolean }[]>().notNull().default([]),
+});
+
+export const orgRequestUnits = pgTable("org_request_units", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull().references(() => orgRequests.id),
+  unitId: integer("unit_id").references(() => orgUnits.id),   // existing unit affected (null for a brand-new unit)
+  action: text("action").notNull(),                 // استحداث | تعديل مسمى | نقل تبعية | إلغاء | تعديل توصيف
+  proposedNameAr: text("proposed_name_ar"),
+  proposedParentId: integer("proposed_parent_id"),
+  proposedLevel: text("proposed_level"),
+  proposedPositions: integer("proposed_positions"),
+}, (t) => [index("oru_request_idx").on(t.requestId)]);
+
+// ================================================================ talent acquisition — مسار الاستقطاب
+export const ENGAGEMENT_TYPES = ["متعاقد", "مكلّف", "معار"] as const;
+export type EngagementType = (typeof ENGAGEMENT_TYPES)[number];
+export const ENGAGEMENT_WORKFLOW: Record<EngagementType, string> = { "متعاقد": "recruit_contractor", "مكلّف": "recruit_assigned", "معار": "recruit_seconded" };
+export const BANDS = ["قيادي", "خبير", "أول", "متخصص"] as const;
+export const CLEARANCE = ["لم يبدأ", "قيد الفحص", "مجاز", "غير مجاز"] as const;
+
+export const requisitions = pgTable("requisitions", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),            // REQ-001
+  roleAr: text("role_ar").notNull(),
+  sectorId: integer("sector_id").notNull().references(() => sectors.id),
+  projectId: integer("project_id").references(() => projects.id),
+  engagementType: text("engagement_type").$type<EngagementType>().notNull(),
+  band: text("band").notNull(),
+  count: integer("count").notNull().default(1),
+  filled: integer("filled").notNull().default(0),
+  priority: text("priority").notNull().default("متوسطة"), // عاجلة | مرتفعة | متوسطة
+  isSenior: boolean("is_senior").notNull().default(false), // senior roles: names visible to the CEO
+  requestedAt: date("requested_at").notNull(),
+  targetStart: date("target_start").notNull(),
+  status: text("status").notNull().default("مفتوح"),  // مفتوح | مكتمل | ملغى
+  justificationAr: text("justification_ar"),
+});
+
+export const candidates = pgTable("candidates", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),            // CND-001
+  nameAr: text("name_ar").notNull(),
+  requisitionId: integer("requisition_id").notNull().references(() => requisitions.id),
+  engagementType: text("engagement_type").$type<EngagementType>().notNull(),
+  sourceAr: text("source_ar"),                      // vendor / nominating sector / lending entity
+  currentRoleAr: text("current_role_ar"),
+  clearanceStatus: text("clearance_status").notNull().default("لم يبدأ"),
+  monthlyRate: real("monthly_rate"),                // contractors: SAR thousands / month
+  secondmentMonths: integer("secondment_months"),   // seconded
+  referenceAr: text("reference_ar"),                // assignment letter / secondment decision / contract no.
+  onboardedResourceId: integer("onboarded_resource_id").references(() => resources.id),
+  onboardedAt: date("onboarded_at"),
+  status: text("status").notNull().default("قيد الإجراء"), // قيد الإجراء | مباشر | مستبعد
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("candidates_req_idx").on(t.requisitionId)]);

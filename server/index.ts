@@ -1,4 +1,5 @@
 import express from "express";
+import { createServer } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
@@ -44,6 +45,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 const port = Number(process.env.PORT ?? 5000);
-setupClient(app).then(() => {
-  app.listen(port, "0.0.0.0", () => console.log(`✓ المنصة تعمل على المنفذ ${port} (${process.env.NODE_ENV ?? "development"})`));
+const httpServer = createServer(app);
+setupClient(app, httpServer).then(() => {
+  httpServer.listen(port, "0.0.0.0", () => console.log(`✓ المنصة تعمل على المنفذ ${port} (${process.env.NODE_ENV ?? "development"})`));
 });

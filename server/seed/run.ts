@@ -6,11 +6,14 @@ import bcrypt from "bcryptjs";
 import { sql } from "drizzle-orm";
 import { db, pool } from "../db";
 import * as s from "../../shared/schema";
-import { generateWorld, GOALS, SECTORS, REGIONS, PORTFOLIOS, KPIS } from "./generator";
+import { generateWorld, GOALS, SECTORS, REGIONS, PORTFOLIOS, KPIS, rng } from "./generator";
 import { generateLearning, PROVIDERS } from "./learning";
 import { generateBudget, WORKFLOW_DEFINITIONS, CLOSED_MONTH } from "./budget";
+import { generateOrg } from "./org";
+import { generateTalent } from "./talent";
 
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@2026";
+const R = rng(20260911);
 
 const DEMO_USERS: { username: string; fullName: string; role: s.Role; modules?: string[] }[] = [
   { username: "ceo", fullName: "الرئيس التنفيذي", role: "ceo" },
@@ -26,6 +29,8 @@ async function main() {
   const w = generateWorld();
 
   await db.execute(sql`TRUNCATE TABLE
+    candidates, requisitions,
+    org_request_units, org_requests, org_units,
     workflow_history, workflow_instances, workflow_definitions, budget_transfers, budget_months, budget_lines, initiative_budget_years, cost_centers,
     succession_plans, skills, learning_enrollments, learning_programs, learning_providers,
     change_requests, change_log, resource_assignments, resources, change_requests_gov, escalations, decisions,
@@ -70,7 +75,7 @@ async function main() {
     code: p.code, nameAr: p.nameAr, programId: prgId[p.programCode], portfolioId: pfId[p.pf], sectorId: sectorId[p.sector], goalId: goalId[p.goal],
     managerName: p.managerName, phase: p.phase, progress: p.progress, scheduleStatus: p.scheduleStatus, financialStatus: p.financialStatus, status: p.status,
     impactTarget: p.impactTarget, impactAchieved: p.impactAchieved, impactContribution: p.impactContribution, priorityScore: p.priorityScore,
-    startDate: p.startDate, endDate: p.endDate,
+    startDate: p.startDate, endDate: p.endDate, tags: [7, 18, 33, 52, 71, 90].includes(Number(p.code.slice(4))) ? ["تنظيمي"] : [],
   }))).returning();
   const prjId = Object.fromEntries(prjRows.map((x) => [x.code, x.id]));
 
@@ -119,6 +124,39 @@ async function main() {
     if ((t as any).rejected) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: "لا يوجد وفر كافٍ في بند الرواتب", userId: dataUser.id });
     await db.insert(s.workflowHistory).values(hist);
   }
+  // organizational structures
+  const O = generateOrg(sectorRows, prjRows.map((p) => ({ id: p.id, nameAr: p.nameAr, tags: p.tags })));
+  const ouRows = await db.insert(s.orgUnits).values(O.units.map(({ ...u }) => u)).returning();
+  const orgDef = defRows.find((d) => d.key === "org_request")!;
+  for (const r of O.requests) {
+    const [req] = await db.insert(s.orgRequests).values({ code: r.code, requestingUnitId: ouRows[r.unit - 1].id, type: r.type, titleAr: r.titleAr, descriptionAr: r.descriptionAr, justificationAr: r.justificationAr, impactHeadcount: r.impactHeadcount, impactBudget: r.impactBudget, duplicationNoteAr: r.duplicationNoteAr ?? null, relatedProjectId: r.relatedProjectId, decisionAuthority: r.decisionAuthority, priority: r.priority, correspondenceRef: `م/${r.code.slice(4)}/2026`, receivedAt: r.receivedAt, status: (r as any).completed ? "منفذ" : (r as any).rejected ? "مرفوض" : "قيد الإجراء", checklist: (r as any).completed ? [{ item: "تحديث الهيكل المعتمد", done: true }, { item: "تحديث الدليل التنظيمي", done: true }, { item: "تحديث نظام الموارد البشرية", done: true }] : [{ item: "تحديث الهيكل المعتمد", done: false }, { item: "تحديث الدليل التنظيمي", done: false }, { item: "تحديث نظام الموارد البشرية", done: false }] }).returning();
+    if (r.units.length) await db.insert(s.orgRequestUnits).values(r.units.map((u: any) => ({ requestId: req.id, unitId: u.unitId ? ouRows[u.unitId - 1].id : null, action: u.action, proposedNameAr: u.proposedNameAr, proposedParentId: u.proposedParentId ? ouRows[u.proposedParentId - 1].id : null, proposedLevel: u.proposedLevel, proposedPositions: u.proposedPositions })));
+    const stageKey = orgDef.stages[r.stageIndex].key; const entered = new Date(new Date(r.receivedAt).getTime() + 86400000 * (r.stageIndex * 4 + 3));
+    const [inst] = await db.insert(s.workflowInstances).values({ definitionId: orgDef.id, entity: "org_requests", entityId: req.id, currentStage: stageKey, stageEnteredAt: (r as any).completed || (r as any).rejected ? entered : new Date(Math.min(entered.getTime(), Date.now() - 86400000 * (r.stageIndex === 4 ? 4 : 1))), status: (r as any).completed ? "completed" : (r as any).rejected ? "rejected" : "active", completedAt: (r as any).completed || (r as any).rejected ? new Date(entered.getTime() + 86400000 * 5) : null, createdAt: new Date(r.receivedAt) }).returning();
+    const hist = [{ instanceId: inst.id, fromStage: null as string | null, toStage: orgDef.stages[0].key, action: "start", noteAr: `وارد برقم م/${r.code.slice(4)}/2026` as string | null, userId: dataUser.id, createdAt: new Date(r.receivedAt) }];
+    for (let i = 0; i < r.stageIndex; i++) hist.push({ instanceId: inst.id, fromStage: orgDef.stages[i].key, toStage: orgDef.stages[i + 1].key, action: "approve", noteAr: null, userId: dataUser.id, createdAt: new Date(new Date(r.receivedAt).getTime() + 86400000 * (i * 4 + 3)) });
+    if ((r as any).completed) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "approve", noteAr: "تم التنفيذ وتحديث الأنظمة", userId: dataUser.id, createdAt: new Date(entered.getTime() + 86400000 * 5) });
+    if ((r as any).rejected) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: "تداخل مع الإدارة العامة للمراقبة الذكية — يُعاد الطرح ضمن مبادرة توحيد المراقبة", userId: dataUser.id, createdAt: new Date(entered.getTime() + 86400000 * 5) });
+    await db.insert(s.workflowHistory).values(hist);
+  }
+  // talent acquisition
+  const Tl = generateTalent(sectorRows, prjRows, resRows.length);
+  const rqRows = await db.insert(s.requisitions).values(Tl.requisitions.map((r) => ({ ...r, engagementType: r.engagementType as s.EngagementType }))).returning();
+  for (const c of Tl.candidates) {
+    const rq = rqRows[c.requisitionId - 1]; const def = defRows.find((d) => d.key === s.ENGAGEMENT_WORKFLOW[c.engagementType as s.EngagementType])!;
+    const [cand] = await db.insert(s.candidates).values({ code: c.code, nameAr: c.nameAr, requisitionId: rq.id, engagementType: c.engagementType, sourceAr: c.sourceAr, currentRoleAr: c.currentRoleAr, clearanceStatus: c.clearanceStatus, monthlyRate: c.monthlyRate, secondmentMonths: c.secondmentMonths, referenceAr: c.referenceAr, onboardedResourceId: c.onboardedResourceId ? resRows[c.onboardedResourceId - 1].id : null, onboardedAt: c.onboardedAt, status: c.status, createdAt: new Date(rq.requestedAt) }).returning();
+    const stageKey = def.stages[c.stageIndex].key; const entered = new Date(Date.now() - 86400000 * c.daysAgoStage);
+    const [inst] = await db.insert(s.workflowInstances).values({ definitionId: def.id, entity: "candidates", entityId: cand.id, currentStage: stageKey, stageEnteredAt: entered, status: c.onboarded ? "completed" : c.dropped ? "rejected" : "active", completedAt: c.onboarded || c.dropped ? entered : null, createdAt: new Date(rq.requestedAt) }).returning();
+    const hist = [{ instanceId: inst.id, fromStage: null as string | null, toStage: def.stages[0].key, action: "start", noteAr: null as string | null, userId: dataUser.id, createdAt: new Date(rq.requestedAt) }];
+    for (let i = 0; i < c.stageIndex; i++) hist.push({ instanceId: inst.id, fromStage: def.stages[i].key, toStage: def.stages[i + 1].key, action: "approve", noteAr: null, userId: dataUser.id, createdAt: new Date(new Date(rq.requestedAt).getTime() + 86400000 * (i * 6 + 4)) });
+    if (c.onboarded) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "approve", noteAr: "تمت المباشرة", userId: dataUser.id, createdAt: entered });
+    if (c.dropped) hist.push({ instanceId: inst.id, fromStage: stageKey, toStage: stageKey, action: "reject", noteAr: R.pick(["اعتذار المرشح", "عدم اجتياز المقابلة", "عدم موافقة الجهة"]), userId: dataUser.id, createdAt: entered });
+    await db.insert(s.workflowHistory).values(hist);
+  }
+  console.log(`✓ الاستقطاب: ${rqRows.length} احتياجاً · ${Tl.candidates.length} مرشحاً · ${Tl.candidates.filter((c) => c.onboarded).length} مباشرة`);
+
+  console.log(`✓ الهياكل التنظيمية: ${ouRows.length} وحدة تنظيمية · ${O.requests.length} طلباً`);
+
   console.log(`✓ الميزانية ومسارات العمل: ${ccRows.length} مراكز تكلفة · ${lineRows.length} بنداً · ${B.transfers.length} مناقلات · ${defRows.length} مسارات عمل`);
 
   await db.insert(s.dataSources).values(w.dataSources);

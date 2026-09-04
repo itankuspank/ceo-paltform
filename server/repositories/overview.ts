@@ -90,8 +90,16 @@ export class OverviewRepository {
     const [pl] = await this.db.select({ planned: sql<number>`coalesce(sum(${s.budgetMonths.planned}),0)` }).from(s.budgetMonths).innerJoin(s.budgetLines, eq(s.budgetLines.id, s.budgetMonths.lineId)).where(sql`${s.budgetLines.fiscalYear} = 2026 and ${s.budgetLines.kind} = 'opex' and ${s.budgetMonths.month} <= 8`);
     const budget = { opexApproved: Math.round(Number(bl.approved)), opexActual: Math.round(Number(bl.actual)), opexSpendPct: Number(bl.approved) ? Math.round((Number(bl.actual) / Number(bl.approved)) * 1000) / 10 : 0, expectedPct: Number(bl.approved) ? Math.round((Number(pl.planned) / Number(bl.approved)) * 1000) / 10 : 0 };
 
+    const [orgc] = await this.db.select({ pending: sql<number>`count(*) filter (where ${s.orgRequests.status} = 'قيد الإجراء')`, units: sql<number>`(select count(*) from org_units where status = 'معتمد')` }).from(s.orgRequests);
+    const [awaiting] = await this.db.select({ n: sql<number>`count(*)` }).from(s.workflowInstances).where(sql`${s.workflowInstances.entity} = 'org_requests' and ${s.workflowInstances.status} = 'active' and ${s.workflowInstances.currentStage} = 'ceo_approval'`);
+    const org = { pending: Number(orgc.pending), units: Number(orgc.units), awaitingCeo: Number(awaiting.n) };
+
+    const [tq] = await this.db.select({ needed: sql<number>`coalesce(sum(${s.requisitions.count}),0)`, filled: sql<number>`coalesce(sum(${s.requisitions.filled}),0)` }).from(s.requisitions).where(sql`${s.requisitions.status} <> 'ملغى'`);
+    const [tp] = await this.db.select({ n: sql<number>`count(*)` }).from(s.candidates).where(eq(s.candidates.status, "قيد الإجراء"));
+    const talent = { needed: Number(tq.needed), filled: Number(tq.filled), pipeline: Number(tp.n), fillRate: Number(tq.needed) ? Math.round((Number(tq.filled) / Number(tq.needed)) * 1000) / 10 : 0 };
+
     return {
-      capability, budget,
+      capability, budget, org, talent,
       kpis: {
         investment: t.investment, impact: t.impact, portfolios: Number(t.portfolios), projects: Number(t.projects), kpiCount: Number(t.kpis),
         kpisAtRisk: Number(t.kpisOffTrack), pendingDecisions: Number(t.pendingDecisions), forecastImpact: t.forecastImpact, targetImpact: 90,

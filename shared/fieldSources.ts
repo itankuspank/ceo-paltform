@@ -32,6 +32,10 @@ export const FIELD_SOURCES: Record<string, Record<string, FieldSource>> = {
   budget_lines: { approved: "manual", committed: "odoo", actual: "odoo", chapter: "manual", category: "manual" },
   initiative_budget_years: { requested: "manual", approved: "manual", committed: "odoo", actual: "odoo", fundingSource: "manual" },
   budget_transfers: { amount: "manual", justificationAr: "manual", status: "computed" },
+  org_units: { nameAr: "manual", level: "manual", parentId: "manual", headNameAr: "odoo", positions: "odoo", headcount: "odoo", status: "manual" },
+  org_requests: { titleAr: "manual", type: "manual", priority: "manual", status: "computed" },
+  requisitions: { roleAr: "manual", count: "manual", filled: "computed", status: "computed" },
+  candidates: { nameAr: "odoo", clearanceStatus: "manual", monthlyRate: "manual", status: "computed" },
 };
 
 /** Fields that require an approval workflow before publishing (FR-D-05). */
@@ -43,4 +47,6 @@ export const SENSITIVE_FIELDS: Record<string, string[]> = {
   decisions: ["status"],
   budget_lines: ["approved"],
   initiative_budget_years: ["approved"],
+  org_units: ["parentId", "status", "level"],
+  candidates: ["clearanceStatus"],
 };
