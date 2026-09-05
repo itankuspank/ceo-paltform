@@ -12,7 +12,7 @@ const DEMO: { username: string; role: Role }[] = [
 ];
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, demoMode } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("ceo");
   const [password, setPassword] = useState("");
@@ -67,7 +67,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 card px-4 py-3">
+          {demoMode && <div className="mt-6 card px-4 py-3">
             <div className="text-[11px] font-semibold text-brand-muted">حسابات النسخة التجريبية — كلمة المرور الموحدة: <span className="font-mono">Demo@2026</span></div>
             <div className="mt-2 grid grid-cols-2 gap-1.5">
               {DEMO.map((d) => (
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

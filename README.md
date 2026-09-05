@@ -14,6 +14,11 @@
 > Kanban pipeline with SLA aging, clearance gate, name privacy by role, and onboarding that creates the HR resource record,
 > and — Sprint 11 — **مسار الابتكار**: ISO 56002-aligned maturity model (6 dimensions × 5 levels) assessed per sector and region
 > by cycle with targets and trend, the maturity map, the sectors × dimensions matrix, and the idea pipeline to CEO scale-up decisions.
+>
+> **Sprint 12 (closing pass):** offline PWA (local Workbox, 35 precached entries, network-first API cache, offline banner),
+> strict same-origin CSP + security headers for on-prem (`SECURITY_HEADERS=strict`), `/api/health`, production mode
+> (`DISABLE_ROLE_SWITCH=true` hides demo accounts and the role switcher), `npm run audit:airgap`, SQL migrations in `migrations/`,
+> `db:seed -- --reference-only` for a real database, screen-level error boundary, `docs/DEPLOYMENT-ONPREM.md`, and BRD Annex A.
 
 ## Stack
 React 19 · Vite · TypeScript · Tailwind · Recharts · React Router · TanStack Query — Express 5 · PostgreSQL · Drizzle ORM · express-session (pg-backed) · bcrypt.
@@ -31,7 +36,7 @@ The top-bar role tabs switch the session server-side (pilot only; set `DISABLE_R
 
 ## Run on-premises (later)
 `npm run build` → `NODE_ENV=production DATABASE_URL=… SESSION_SECRET=… node dist/index.js` behind the internal reverse proxy (HTTPS via internal CA).
-A full transfer & deployment guide (`docs/DEPLOYMENT-ONPREM.md`) arrives in the final sprint.
+Full transfer & deployment guide: **`docs/DEPLOYMENT-ONPREM.md`** (bundle build, `psql` migrations, reference seed, systemd, nginx/TLS, security, backups, go-live checklist).
 
 ## Scripts
 | script | purpose |
@@ -41,7 +46,10 @@ A full transfer & deployment guide (`docs/DEPLOYMENT-ONPREM.md`) arrives in the 
 | `npm run start` | production server |
 | `npm run check` | TypeScript type-check |
 | `npm run db:push` | apply schema to PostgreSQL |
-| `npm run db:seed` | load / reload the synthetic world (idempotent) |
+| `npm run db:seed` | load / reload the synthetic world (refuses in production unless `ALLOW_DEMO_SEED=true`) |
+| `npm run db:seed -- --reference-only` | production: reference data + admin account only (`ADMIN_USERNAME`, `ADMIN_PASSWORD`) |
+| `npm run db:migrate:sql` | regenerate `migrations/*.sql` from the schema |
+| `npm run audit:airgap` | scan the production build for external URLs (exit 1 if any) |
 
 ## Layout
 ```

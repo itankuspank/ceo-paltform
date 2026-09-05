@@ -4,7 +4,7 @@ import type { SafeUser, Role } from "@shared/schema";
 import { can, type Permission } from "@shared/rbac";
 
 type AuthCtx = {
-  user: SafeUser | null; loading: boolean;
+  user: SafeUser | null; loading: boolean; demoMode: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchRole: (role: Role) => Promise<void>;
@@ -15,11 +15,12 @@ const Ctx = createContext<AuthCtx | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [demoMode, setDemoMode] = useState(true);
   useEffect(() => {
-    api<{ user: SafeUser | null }>("/api/auth/me").then((r) => setUser(r.user)).catch(() => setUser(null)).finally(() => setLoading(false));
+    fetch("/api/auth/me", { credentials: "same-origin" }).then(async (r) => { const j = await r.json().catch(() => ({})); setDemoMode(j.demoMode ?? true); setUser(r.ok ? j.user : null); }).catch(() => setUser(null)).finally(() => setLoading(false));
   }, []);
   const value: AuthCtx = {
-    user, loading,
+    user, loading, demoMode,
     login: async (username, password) => { const r = await post<{ user: SafeUser }>("/api/auth/login", { username, password }); setUser(r.user); },
     logout: async () => { await post("/api/auth/logout", {}); setUser(null); },
     switchRole: async (role) => { const r = await post<{ user: SafeUser }>("/api/auth/switch-role", { role }); setUser(r.user); },

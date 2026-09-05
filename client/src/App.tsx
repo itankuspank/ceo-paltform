@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ALL_ITEMS } from "@/lib/nav";
 import AppShell from "@/components/AppShell";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Loading } from "@/components/ui";
 import LandingPage from "@/pages/Landing";
 import LoginPage from "@/pages/Login";
@@ -78,7 +79,7 @@ export default function App() {
             <Route element={<Protected><AppShell /></Protected>}>
               {ALL_ITEMS.map((it) => {
                 const Page = BUILT[it.path] ?? PlaceholderPage;
-                return <Route key={it.path} path={`${it.path}/*`} element={<Page />} />;
+                return <Route key={it.path} path={`${it.path}/*`} element={<ErrorBoundary><Page /></ErrorBoundary>} />;
               })}
               <Route path="*" element={<Navigate to="/overview" replace />} />
             </Route>

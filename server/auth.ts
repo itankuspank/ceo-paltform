@@ -51,12 +51,15 @@ authRouter.post("/logout", (req, res) => {
   req.session.destroy(() => { res.clearCookie("sid"); res.json({ ok: true }); });
 });
 
+const demoMode = () => process.env.DISABLE_ROLE_SWITCH !== "true";
+
 authRouter.get("/me", async (req, res) => {
-  if (!req.session?.userId) return res.status(401).json({ user: null });
+  if (!req.session?.userId) return res.status(401).json({ user: null, demoMode: demoMode() });
   const [u] = await db.select().from(users).where(eq(users.id, req.session.userId)).limit(1);
-  if (!u) return res.status(401).json({ user: null });
-  res.json({ user: safe(u) });
+  if (!u) return res.status(401).json({ user: null, demoMode: demoMode() });
+  res.json({ user: safe(u), demoMode: demoMode() });
 });
+authRouter.get("/config", (_req, res) => res.json({ demoMode: demoMode() }));
 
 /**
  * Demo role switcher (pilot only). Swaps the session to the demo account of the chosen role,

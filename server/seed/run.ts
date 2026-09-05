@@ -25,7 +25,29 @@ const DEMO_USERS: { username: string; fullName: string; role: s.Role; modules?: 
   { username: "admin", fullName: "مدير النظام", role: "system_admin" },
 ];
 
+/**
+ * Production mode: `npm run db:seed -- --reference-only`
+ * Loads ONLY reference data (regions, sectors, workflow definitions, innovation dimensions) and one admin account
+ * (ADMIN_USERNAME / ADMIN_PASSWORD from the environment). No synthetic business data — real data enters through
+ * the console, CSV import, or the Odoo / Project Server connectors.
+ */
+async function referenceOnly() {
+  console.log("⏳ تحميل البيانات المرجعية فقط (بيئة إنتاجية)…");
+  const username = (process.env.ADMIN_USERNAME ?? "admin").toLowerCase(); const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 10) throw new Error("ADMIN_PASSWORD must be set (10+ characters) for a production seed");
+  const [existingAdmin] = await db.select().from(s.users).where(sql`username = ${username}`);
+  if (!existingAdmin) await db.insert(s.users).values({ username, fullName: "مدير النظام", role: "system_admin", passwordHash: await bcrypt.hash(password, 12), modules: ["core", "budget", "org", "talent", "innovation"] });
+  const [rc] = await db.select({ n: sql<number>`count(*)` }).from(s.regions); if (Number(rc.n) === 0) await db.insert(s.regions).values(REGIONS);
+  const [sc] = await db.select({ n: sql<number>`count(*)` }).from(s.sectors); if (Number(sc.n) === 0) await db.insert(s.sectors).values(SECTORS);
+  const [wc] = await db.select({ n: sql<number>`count(*)` }).from(s.workflowDefinitions); if (Number(wc.n) === 0) await db.insert(s.workflowDefinitions).values(WORKFLOW_DEFINITIONS);
+  const [dc] = await db.select({ n: sql<number>`count(*)` }).from(s.innovationDimensions); if (Number(dc.n) === 0) await db.insert(s.innovationDimensions).values(DIMENSIONS);
+  console.log(`✓ البيانات المرجعية جاهزة — الحساب الإداري: ${username}`);
+  await pool.end();
+}
+
 async function main() {
+  if (process.argv.includes("--reference-only")) return referenceOnly();
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") throw new Error("Refusing to load synthetic demo data in production. Use --reference-only, or set ALLOW_DEMO_SEED=true deliberately.");
   console.log("⏳ تهيئة البيانات التجريبية…");
   const w = generateWorld();
 

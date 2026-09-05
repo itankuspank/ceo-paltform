@@ -13,6 +13,29 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "2mb" }));
 
+/**
+ * Air-gap enforcement at the browser level (on-prem: SECURITY_HEADERS=strict).
+ * The CSP allows only same-origin requests — any accidental external call is blocked by the browser itself.
+ * Off by default in the Replit pilot because its preview runs inside an iframe.
+ */
+if (process.env.SECURITY_HEADERS === "strict") {
+  app.use((_req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; child-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Referrer-Policy", "same-origin");
+    res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+    if (process.env.COOKIE_SECURE !== "false") res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    next();
+  });
+}
+
+/** Health check for the reverse proxy / monitoring (public, no data). */
+app.get("/api/health", async (_req, res) => {
+  try { await pool.query("select 1"); res.json({ ok: true, db: true, version: process.env.APP_VERSION ?? "0.1.0", mode: process.env.NODE_ENV ?? "development" }); }
+  catch { res.status(503).json({ ok: false, db: false }); }
+});
+
 const PgStore = connectPgSimple(session);
 app.use(session({
   store: new PgStore({ pool, createTableIfMissing: true }),

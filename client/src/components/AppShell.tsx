@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, WifiOff } from "lucide-react";
 import clsx from "clsx";
 import { NAV } from "@/lib/nav";
 import { useAuth } from "@/lib/auth";
@@ -52,9 +53,16 @@ function Sidebar() {
   );
 }
 
+function useOnline() {
+  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  useEffect(() => { const on = () => setOnline(true), off = () => setOnline(false); window.addEventListener("online", on); window.addEventListener("offline", off); return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); }; }, []);
+  return online;
+}
+
 function TopBar() {
-  const { user, switchRole, logout } = useAuth();
+  const { user, switchRole, logout, demoMode } = useAuth();
   const navigate = useNavigate();
+  const online = useOnline();
   return (
     <header className="sticky top-0 z-20 h-14 bg-white border-b border-brand-border flex items-center justify-between px-5 gap-4">
       <div className="flex items-center gap-4 min-w-0">
@@ -63,16 +71,18 @@ function TopBar() {
           <div className="text-[10px] text-brand-muted leading-tight">{PLATFORM_NAME_EN}</div>
         </div>
         <span className="chip bg-rag-greenBg text-rag-green shrink-0"><span className="h-1.5 w-1.5 rounded-full bg-rag-green" /> بيئة داخلية معزولة — Air-Gapped</span>
+        {!online && <span className="chip bg-rag-amberBg text-[#9A6B0F] shrink-0"><WifiOff className="h-3 w-3" /> دون اتصال — تُعرض آخر نسخة محفوظة</span>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <div className="flex items-center gap-0.5 rounded-lg border border-brand-border bg-brand-cream p-0.5">
+        {!demoMode && user && <span className="text-[11px] text-brand-muted">{user.fullName} · {ROLE_LABELS[user.role].ar}</span>}
+        {demoMode && <div className="flex items-center gap-0.5 rounded-lg border border-brand-border bg-brand-cream p-0.5">
           {ROLES.map((r) => (
             <button key={r} onClick={() => switchRole(r)} className={clsx(
               "rounded-md px-2.5 py-1 text-[11px] whitespace-nowrap transition-colors",
               user?.role === r ? "bg-brand text-white font-semibold" : "text-brand-muted hover:text-brand-text",
             )}>{ROLE_LABELS[r].ar}</button>
           ))}
-        </div>
+        </div>}
         <button onClick={async () => { await logout(); navigate("/"); }} title="تسجيل الخروج" className="h-8 w-8 inline-flex items-center justify-center rounded-md text-brand-muted hover:bg-brand-cream">
           <LogOut className="h-4 w-4" />
         </button>
